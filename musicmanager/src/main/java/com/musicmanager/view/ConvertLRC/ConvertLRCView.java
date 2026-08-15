@@ -20,6 +20,7 @@ import com.musicmanager.interface_adapter.ConvertLRC.ConvertLRCViewModal;
 import com.musicmanager.use_case.ConvertLRC.ConvertLRCDataAccessInterface;
 import com.musicmanager.use_case.ConvertLRC.ConvertLRCInputBoundary;
 import com.musicmanager.view.FlatButton;
+import com.musicmanager.view.Theme;
 
 /**
  * home screen: pick a music folder, then move on to SongListView.
@@ -40,24 +41,41 @@ public class ConvertLRCView extends JFrame {
 
         setTitle("Music Manager");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(480, 220);
+        setSize(Theme.COMMON_WIDTH, Theme.HOME_HEIGHT);
         setLocationRelativeTo(null);
 
-        JPanel content = new JPanel(new BorderLayout(0, 20));
-        content.setBorder(BorderFactory.createEmptyBorder(24, 24, 24, 24));
+        JPanel content = new JPanel(new BorderLayout(0, Theme.COMPONENT_GAP));
+        content.setBackground(Theme.BACKGROUND);
+        content.setBorder(BorderFactory.createEmptyBorder(Theme.WINDOW_PADDING, Theme.WINDOW_PADDING,
+                Theme.WINDOW_PADDING, Theme.WINDOW_PADDING));
+
+        JLabel appTitle = new JLabel("Music Manager");
+        appTitle.setFont(Theme.titleFont());
+        appTitle.setForeground(Theme.TEXT_PRIMARY);
+        content.add(appTitle, BorderLayout.NORTH);
+
+        JPanel centerPanel = new JPanel(new BorderLayout(0, Theme.COMPONENT_GAP));
+        centerPanel.setOpaque(false);
 
         JLabel label = new JLabel("Music folder");
-        content.add(label, BorderLayout.NORTH);
+        label.setFont(Theme.headerFont());
+        label.setForeground(Theme.TEXT_SECONDARY);
+        centerPanel.add(label, BorderLayout.NORTH);
 
-        JPanel pathPanel = new JPanel(new BorderLayout(8, 0));
-        pathField.setPreferredSize(new Dimension(280, 32));
+        JPanel pathPanel = new JPanel(new BorderLayout(Theme.COMPONENT_GAP, 0));
+        pathPanel.setOpaque(false);
+        pathField.setFont(Theme.bodyFont());
+        pathField.setPreferredSize(new Dimension(280, 40));
         pathPanel.add(pathField, BorderLayout.CENTER);
 
         FlatButton browseButton = FlatButton.secondary("Browse");
         pathPanel.add(browseButton, BorderLayout.EAST);
-        content.add(pathPanel, BorderLayout.CENTER);
+        centerPanel.add(pathPanel, BorderLayout.CENTER);
+
+        content.add(centerPanel, BorderLayout.CENTER);
 
         JPanel actionPanel = new JPanel(new BorderLayout());
+        actionPanel.setOpaque(false);
         FlatButton convertButton = FlatButton.primary("Convert LRC");
         actionPanel.add(convertButton, BorderLayout.EAST);
         content.add(actionPanel, BorderLayout.SOUTH);

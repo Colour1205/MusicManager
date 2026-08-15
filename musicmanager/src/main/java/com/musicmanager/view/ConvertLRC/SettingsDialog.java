@@ -19,6 +19,7 @@ import javax.swing.SwingConstants;
 
 import com.musicmanager.use_case.ConvertLRC.ConvertLRCInputData;
 import com.musicmanager.view.FlatButton;
+import com.musicmanager.view.Theme;
 
 /**
  * modal dialog letting the user pick which of the available target formats
@@ -31,22 +32,36 @@ public class SettingsDialog extends JDialog {
     public SettingsDialog(Frame owner, List<String> selectedFormats, Consumer<List<String>> onSave) {
         super(owner, "Settings", true);
 
-        JPanel content = new JPanel(new BorderLayout(0, 16));
-        content.setBorder(BorderFactory.createEmptyBorder(20, 24, 20, 24));
+        JPanel content = new JPanel(new BorderLayout(0, Theme.COMPONENT_GAP));
+        content.setBackground(Theme.BACKGROUND);
+        content.setBorder(BorderFactory.createEmptyBorder(Theme.WINDOW_PADDING, Theme.WINDOW_PADDING,
+                Theme.WINDOW_PADDING, Theme.WINDOW_PADDING));
 
         JLabel title = new JLabel("Target formats");
+        title.setFont(Theme.headerFont());
+        title.setForeground(Theme.TEXT_PRIMARY);
         title.setHorizontalAlignment(SwingConstants.LEFT);
         content.add(title, BorderLayout.NORTH);
 
-        JPanel checkBoxPanel = new JPanel(new GridLayout(ConvertLRCInputData.AVAILABLE_FORMATS.length, 1, 0, 8));
+        JPanel checkBoxPanel = new JPanel(
+                new GridLayout(ConvertLRCInputData.AVAILABLE_FORMATS.length, 1, 0, Theme.COMPONENT_GAP));
+        checkBoxPanel.setBackground(Theme.SURFACE);
+        checkBoxPanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Theme.BORDER, 1),
+                BorderFactory.createEmptyBorder(Theme.COMPONENT_GAP, Theme.COMPONENT_GAP, Theme.COMPONENT_GAP,
+                        Theme.COMPONENT_GAP)));
         for (String format : ConvertLRCInputData.AVAILABLE_FORMATS) {
             JCheckBox checkBox = new JCheckBox(format, selectedFormats.contains(format));
+            checkBox.setFont(Theme.bodyFont());
+            checkBox.setForeground(Theme.TEXT_PRIMARY);
+            checkBox.setOpaque(false);
             formatCheckBoxes.put(format, checkBox);
             checkBoxPanel.add(checkBox);
         }
         content.add(checkBoxPanel, BorderLayout.CENTER);
 
         JPanel buttonPanel = new JPanel();
+        buttonPanel.setOpaque(false);
         FlatButton saveButton = FlatButton.primary("Save");
         FlatButton cancelButton = FlatButton.secondary("Cancel");
         buttonPanel.add(cancelButton);
@@ -67,7 +82,7 @@ public class SettingsDialog extends JDialog {
 
         setContentPane(content);
         setResizable(false);
-        pack();
+        setSize(Theme.SETTINGS_WIDTH, Theme.SETTINGS_HEIGHT);
         setLocationRelativeTo((Component) owner);
     }
 }
