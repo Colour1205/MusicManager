@@ -1,26 +1,23 @@
-package com.musicmanager.use_case.ConvertLRC;
+package com.musicmanager.interface_adapter.ConvertLRC;
 
-import java.util.ArrayList;
 import java.util.List;
 
-public class ConvertLRCOutputData {
+/**
+ * The state held by ConvertLRCViewModal.
+ */
+public class ConvertLRCState {
+    private String message;
     private int successCount;
     private int failCount;
     private int totalCount;
     private List<String> failedPaths;
 
-    public ConvertLRCOutputData() {
-        this.successCount = 0;
-        this.failCount = 0;
-        this.totalCount = 0;
-        this.failedPaths = new ArrayList<>();
+    public String getMessage() {
+        return message;
     }
 
-    public ConvertLRCOutputData(int successCount, int failCount, int totalCount, List<String> failedPaths) {
-        this.successCount = successCount;
-        this.failCount = failCount;
-        this.totalCount = totalCount;
-        this.failedPaths = failedPaths;
+    public void setMessage(String message) {
+        this.message = message;
     }
 
     public int getSuccessCount() {
@@ -54,5 +51,4 @@ public class ConvertLRCOutputData {
     public void setFailedPaths(List<String> failedPaths) {
         this.failedPaths = failedPaths;
     }
-
 }

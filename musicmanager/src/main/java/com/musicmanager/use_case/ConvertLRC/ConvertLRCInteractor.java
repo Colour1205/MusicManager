@@ -1,5 +1,6 @@
 package com.musicmanager.use_case.ConvertLRC;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
 
@@ -28,24 +29,29 @@ public class ConvertLRCInteractor implements ConvertLRCInputBoundary {
         int successCount = 0;
         int failCount = 0;
         int totalCount = LRCs.size();
-        // TODO: add error handling for failed conversions, currently all conversions
-        // are assumed to succeed
+        List<String> failedPaths = new ArrayList<>();
 
         while (!LRCs.isEmpty()) {
             Lyric currLyric = LRCs.poll();
 
-            for (String format : targetFormats) {
-                switch (format) {
-                    case "TTML":
-                        convertToTTML(currLyric);
-                        break;
-                    case "HMRC":
-                        convertToHMRC(currLyric);
-                        break;
-                    case "LRC":
-                        convertToLRC(currLyric);
-                        break;
+            try {
+                for (String format : targetFormats) {
+                    switch (format) {
+                        case "TTML":
+                            convertToTTML(currLyric);
+                            break;
+                        case "HMRC":
+                            convertToHMRC(currLyric);
+                            break;
+                        case "LRC":
+                            convertToLRC(currLyric);
+                            break;
+                    }
                 }
+                successCount++;
+            } catch (Exception e) {
+                failCount++;
+                failedPaths.add(currLyric.getPath());
             }
         }
 
@@ -53,6 +59,7 @@ public class ConvertLRCInteractor implements ConvertLRCInputBoundary {
         outputData.setFailCount(failCount);
         outputData.setSuccessCount(successCount);
         outputData.setTotalCount(totalCount);
+        outputData.setFailedPaths(failedPaths);
         this.outputBoundary.present(outputData);
     }
 
