@@ -4,6 +4,8 @@ import java.util.List;
 
 public class ConvertLRCInputData {
 
+    public static final String[] AVAILABLE_FORMATS = { "TTML", "HMRC", "LRC" };
+
     private final String path;
     private final List<String> targetFormats; // currently only supports "TTML" and "HMRC" and "LRC"
 
