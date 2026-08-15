@@ -10,23 +10,50 @@ import com.musicmanager.entity.WordTimeStamp;
 
 public class ConvertLRCInteractor implements ConvertLRCInputBoundary {
 
-    private ConvertLRCInputData inputData;
     private ConvertLRCDataAccessInterface dataAccess;
+    private ConvertLRCOutputBoundary outputBoundary;
 
-    public void convertLRC(ConvertLRCInputData inputData, ConvertLRCDataAccessInterface dataAccess) {
-        this.inputData = inputData;
+    public void convertLRC(ConvertLRCDataAccessInterface dataAccess, ConvertLRCOutputBoundary outputBoundary) {
         this.dataAccess = dataAccess;
+        this.outputBoundary = outputBoundary;
     }
 
-    public void execute() {
+    public void execute(ConvertLRCInputData inputData) {
         String path = inputData.getPath();
+        List<String> targetFormats = inputData.getTargetFormats();
+
         Queue<Music> musics = dataAccess.getMusics(path);
         Queue<Lyric> LRCs = dataAccess.getLRCs(musics);
+
+        int successCount = 0;
+        int failCount = 0;
+        int totalCount = LRCs.size();
+        // TODO: add error handling for failed conversions, currently all conversions
+        // are assumed to succeed
 
         while (!LRCs.isEmpty()) {
             Lyric currLyric = LRCs.poll();
 
+            for (String format : targetFormats) {
+                switch (format) {
+                    case "TTML":
+                        convertToTTML(currLyric);
+                        break;
+                    case "HMRC":
+                        convertToHMRC(currLyric);
+                        break;
+                    case "LRC":
+                        convertToLRC(currLyric);
+                        break;
+                }
+            }
         }
+
+        ConvertLRCOutputData outputData = new ConvertLRCOutputData();
+        outputData.setFailCount(failCount);
+        outputData.setSuccessCount(successCount);
+        outputData.setTotalCount(totalCount);
+        this.outputBoundary.present(outputData);
     }
 
     /**
@@ -46,7 +73,8 @@ public class ConvertLRCInteractor implements ConvertLRCInputBoundary {
         ttml.append("\n        </metadata>");
         ttml.append("\n    </head>");
 
-        String duration = lines.isEmpty() ? formatTTMLTime(0) : formatTTMLTime(lines.get(lines.size() - 1).getEndTimeMs());
+        String duration = lines.isEmpty() ? formatTTMLTime(0)
+                : formatTTMLTime(lines.get(lines.size() - 1).getEndTimeMs());
 
         ttml.append("\n    <body dur=\"").append(duration).append("\">");
         ttml.append("\n        <div begin=\"00:00.000\" end=\"").append(duration).append("\">");
