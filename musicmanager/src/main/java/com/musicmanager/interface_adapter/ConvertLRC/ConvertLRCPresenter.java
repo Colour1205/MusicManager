@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.musicmanager.use_case.ConvertLRC.ConvertLRCOutputBoundary;
 import com.musicmanager.use_case.ConvertLRC.ConvertLRCOutputData;
+import com.musicmanager.use_case.ConvertLRC.ConvertLRCProgressData;
 
 public class ConvertLRCPresenter implements ConvertLRCOutputBoundary {
     private final ConvertLRCViewModal viewModal;
@@ -28,6 +29,16 @@ public class ConvertLRCPresenter implements ConvertLRCOutputBoundary {
 
         viewModal.setState(state);
         viewModal.firePropertyChange();
+    }
+
+    @Override
+    public void presentProgress(ConvertLRCProgressData progressData) {
+        ConvertLRCState state = viewModal.getState();
+        state.setLastProgressMusicPath(progressData.getMusicPath());
+        state.setLastProgressSuccess(progressData.isSuccess());
+
+        viewModal.setState(state);
+        viewModal.firePropertyChange("progress");
     }
 
     private String buildMessage(int successCount, int failCount, int totalCount, List<String> failedPaths) {

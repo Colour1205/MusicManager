@@ -12,6 +12,9 @@ public class ConvertLRCState {
     private int totalCount;
     private List<String> failedPaths;
 
+    private String lastProgressMusicPath;
+    private boolean lastProgressSuccess;
+
     public String getMessage() {
         return message;
     }
@@ -50,5 +53,21 @@ public class ConvertLRCState {
 
     public void setFailedPaths(List<String> failedPaths) {
         this.failedPaths = failedPaths;
+    }
+
+    public String getLastProgressMusicPath() {
+        return lastProgressMusicPath;
+    }
+
+    public void setLastProgressMusicPath(String lastProgressMusicPath) {
+        this.lastProgressMusicPath = lastProgressMusicPath;
+    }
+
+    public boolean isLastProgressSuccess() {
+        return lastProgressSuccess;
+    }
+
+    public void setLastProgressSuccess(boolean lastProgressSuccess) {
+        this.lastProgressSuccess = lastProgressSuccess;
     }
 }

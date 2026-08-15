@@ -21,6 +21,8 @@ public final class Theme {
     public static final Color TEXT_PRIMARY = Color.decode("#1A1D23");
     public static final Color TEXT_SECONDARY = Color.decode("#6B7280");
     public static final Color DISABLED = Color.decode("#C7CBD1");
+    public static final Color SUCCESS = PRIMARY; // reuse the app's accent green for success status text
+    public static final Color ERROR = Color.decode("#C0392B");
 
     // typography
     public static final String FONT_FAMILY = Font.SANS_SERIF;
@@ -28,6 +30,7 @@ public final class Theme {
     public static final int HEADER_SIZE = 15;
     public static final int BODY_SIZE = 13;
     public static final int BUTTON_SIZE = 14;
+    public static final int STATUS_SIZE = 11;
 
     // spacing
     public static final int WINDOW_PADDING = 24;
@@ -57,6 +60,10 @@ public final class Theme {
 
     public static Font bodyFont() {
         return new Font(FONT_FAMILY, Font.PLAIN, BODY_SIZE);
+    }
+
+    public static Font statusFont() {
+        return new Font(FONT_FAMILY, Font.BOLD, STATUS_SIZE);
     }
 
     private Theme() {

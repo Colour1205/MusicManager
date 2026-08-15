@@ -1,8 +1,9 @@
 package com.musicmanager.use_case.ConvertLRC;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
-import java.util.Queue;
+import java.util.Map;
 
 import com.musicmanager.entity.Lyric;
 import com.musicmanager.entity.Music;
@@ -20,19 +21,28 @@ public class ConvertLRCInteractor implements ConvertLRCInputBoundary {
     }
 
     public void execute(ConvertLRCInputData inputData) {
-        String path = inputData.getPath();
+        List<Music> musics = inputData.getMusics();
         List<String> targetFormats = inputData.getTargetFormats();
 
-        Queue<Music> musics = dataAccess.getMusics(path);
-        Queue<Lyric> LRCs = dataAccess.getLRCs(musics);
+        Map<Music, Lyric> lyricsByMusic = dataAccess.getLRCs(new LinkedList<>(musics));
 
         int successCount = 0;
         int failCount = 0;
-        int totalCount = LRCs.size();
+        int totalCount = musics.size();
         List<String> failedPaths = new ArrayList<>();
 
-        while (!LRCs.isEmpty()) {
-            Lyric currLyric = LRCs.poll();
+        for (Music music : musics) {
+            Lyric currLyric = lyricsByMusic.get(music);
+
+            // dataAccess.getLRCs silently skips musics with no lyric file; report those as
+            // failed too instead of leaving the caller waiting on a song that was never
+            // actually attempted
+            if (currLyric == null) {
+                failCount++;
+                failedPaths.add(music.getPath());
+                outputBoundary.presentProgress(new ConvertLRCProgressData(music.getPath(), false));
+                continue;
+            }
 
             try {
                 for (String format : targetFormats) {
@@ -49,9 +59,11 @@ public class ConvertLRCInteractor implements ConvertLRCInputBoundary {
                     }
                 }
                 successCount++;
+                outputBoundary.presentProgress(new ConvertLRCProgressData(music.getPath(), true));
             } catch (Exception e) {
                 failCount++;
                 failedPaths.add(currLyric.getPath());
+                outputBoundary.presentProgress(new ConvertLRCProgressData(music.getPath(), false));
             }
         }
 
