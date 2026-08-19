@@ -22,4 +22,33 @@
         </dependency>
     </dependencies>
 
+    <build>
+        <plugins>
+            <!-- mvn clean install with no shading would produce a jar with no Main-Class
+                 and none of its dependencies (like jaudiotagger) on the classpath, so
+                 double-clicking it does nothing. This bundles both into one runnable jar. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.6.0</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <transformers>
+                                <transformer
+                                        implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>com.musicmanager.app.Main</mainClass>
+                                </transformer>
+                            </transformers>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
 </project>
