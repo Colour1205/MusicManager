@@ -48,6 +48,50 @@
                     </execution>
                 </executions>
             </plugin>
+
+            <!-- wraps the shaded jar (above) in a native Windows .exe carrying
+                 musicmanager-icon.ico, since a plain .jar can't have a custom icon on
+                 Windows. Must be declared after maven-shade-plugin: both bind to the
+                 package phase, and plugins bound to the same phase run in the order
+                 they're declared in this file. -->
+            <plugin>
+                <groupId>com.akathist.maven.plugins.launch4j</groupId>
+                <artifactId>launch4j-maven-plugin</artifactId>
+                <version>2.6.0</version>
+                <executions>
+                    <execution>
+                        <id>l4j-gui</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>launch4j</goal>
+                        </goals>
+                        <configuration>
+                            <headerType>gui</headerType>
+                            <jar>${project.build.directory}/${project.build.finalName}.jar</jar>
+                            <outfile>${project.build.directory}/MusicManager.exe</outfile>
+                            <errTitle>Music Manager</errTitle>
+                            <icon>${project.basedir}/src/main/resources/musicmanager-icon.ico</icon>
+                            <classPath>
+                                <mainClass>com.musicmanager.app.Main</mainClass>
+                            </classPath>
+                            <jre>
+                                <minVersion>17</minVersion>
+                            </jre>
+                            <versionInfo>
+                                <fileVersion>1.0.0.0</fileVersion>
+                                <txtFileVersion>1.0.0.0</txtFileVersion>
+                                <fileDescription>Music Manager</fileDescription>
+                                <copyright>Music Manager</copyright>
+                                <productVersion>1.0.0.0</productVersion>
+                                <txtProductVersion>1.0.0.0</txtProductVersion>
+                                <productName>Music Manager</productName>
+                                <internalName>MusicManager</internalName>
+                                <originalFilename>MusicManager.exe</originalFilename>
+                            </versionInfo>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 
