@@ -1,7 +1,9 @@
 package com.musicmanager.use_case.ConvertLRC;
 
+import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
-import java.util.Queue;
+import java.util.Map;
 
 import com.musicmanager.entity.Lyric;
 import com.musicmanager.entity.Music;
@@ -10,23 +12,67 @@ import com.musicmanager.entity.WordTimeStamp;
 
 public class ConvertLRCInteractor implements ConvertLRCInputBoundary {
 
-    private ConvertLRCInputData inputData;
     private ConvertLRCDataAccessInterface dataAccess;
+    private ConvertLRCOutputBoundary outputBoundary;
 
-    public void convertLRC(ConvertLRCInputData inputData, ConvertLRCDataAccessInterface dataAccess) {
-        this.inputData = inputData;
+    public void convertLRC(ConvertLRCDataAccessInterface dataAccess, ConvertLRCOutputBoundary outputBoundary) {
         this.dataAccess = dataAccess;
+        this.outputBoundary = outputBoundary;
     }
 
-    public void execute() {
-        String path = inputData.getPath();
-        Queue<Music> musics = dataAccess.getMusics(path);
-        Queue<Lyric> LRCs = dataAccess.getLRCs(musics);
+    public void execute(ConvertLRCInputData inputData) {
+        List<Music> musics = inputData.getMusics();
+        List<String> targetFormats = inputData.getTargetFormats();
 
-        while (!LRCs.isEmpty()) {
-            Lyric currLyric = LRCs.poll();
+        Map<Music, Lyric> lyricsByMusic = dataAccess.getLRCs(new LinkedList<>(musics));
 
+        int successCount = 0;
+        int failCount = 0;
+        int totalCount = musics.size();
+        List<String> failedPaths = new ArrayList<>();
+
+        for (Music music : musics) {
+            Lyric currLyric = lyricsByMusic.get(music);
+
+            // dataAccess.getLRCs silently skips musics with no lyric file; report those as
+            // failed too instead of leaving the caller waiting on a song that was never
+            // actually attempted
+            if (currLyric == null) {
+                failCount++;
+                failedPaths.add(music.getPath());
+                outputBoundary.presentProgress(new ConvertLRCProgressData(music.getPath(), false));
+                continue;
+            }
+
+            try {
+                for (String format : targetFormats) {
+                    switch (format) {
+                        case "TTML":
+                            convertToTTML(currLyric);
+                            break;
+                        case "HMRC":
+                            convertToHMRC(currLyric);
+                            break;
+                        case "LRC":
+                            convertToLRC(currLyric);
+                            break;
+                    }
+                }
+                successCount++;
+                outputBoundary.presentProgress(new ConvertLRCProgressData(music.getPath(), true));
+            } catch (Exception e) {
+                failCount++;
+                failedPaths.add(currLyric.getPath());
+                outputBoundary.presentProgress(new ConvertLRCProgressData(music.getPath(), false));
+            }
         }
+
+        ConvertLRCOutputData outputData = new ConvertLRCOutputData();
+        outputData.setFailCount(failCount);
+        outputData.setSuccessCount(successCount);
+        outputData.setTotalCount(totalCount);
+        outputData.setFailedPaths(failedPaths);
+        this.outputBoundary.present(outputData);
     }
 
     /**
@@ -46,7 +92,8 @@ public class ConvertLRCInteractor implements ConvertLRCInputBoundary {
         ttml.append("\n        </metadata>");
         ttml.append("\n    </head>");
 
-        String duration = lines.isEmpty() ? formatTTMLTime(0) : formatTTMLTime(lines.get(lines.size() - 1).getEndTimeMs());
+        String duration = lines.isEmpty() ? formatTTMLTime(0)
+                : formatTTMLTime(lines.get(lines.size() - 1).getEndTimeMs());
 
         ttml.append("\n    <body dur=\"").append(duration).append("\">");
         ttml.append("\n        <div begin=\"00:00.000\" end=\"").append(duration).append("\">");
