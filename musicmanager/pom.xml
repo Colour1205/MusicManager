@@ -13,4 +13,13 @@
         <maven.compiler.target>17</maven.compiler.target>
     </properties>
 
+    <dependencies>
+        <!-- reads ID3/Vorbis/MP4 tags and embedded cover art across mp3/flac/ogg/m4a/wav -->
+        <dependency>
+            <groupId>net.jthink</groupId>
+            <artifactId>jaudiotagger</artifactId>
+            <version>3.0.1</version>
+        </dependency>
+    </dependencies>
+
 </project>

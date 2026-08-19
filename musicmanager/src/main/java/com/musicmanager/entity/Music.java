@@ -10,19 +10,22 @@ public class Music {
     private LinkedList<String> artists;
     private String album;
     private String path;
-    
+    private byte[] coverArt; // raw embedded artwork image bytes from the file's tag, or null if none
+
     public Music() {
         this.title = "";
         this.artists = new LinkedList<String>();
         this.album = "";
         this.path = "";
+        this.coverArt = null;
     }
 
-    public Music(String title, LinkedList<String> artists, String album, String path) {
+    public Music(String title, LinkedList<String> artists, String album, String path, byte[] coverArt) {
         this.title = title;
         this.artists = artists;
         this.album = album;
         this.path = path;
+        this.coverArt = coverArt;
     }
 
     public String getTitle() {
@@ -57,17 +60,27 @@ public class Music {
         this.path = path;
     }
 
+    public byte[] getCoverArt() {
+        return coverArt;
+    }
+
+    public void setCoverArt(byte[] coverArt) {
+        this.coverArt = coverArt;
+    }
+
     public static class Builder {
         private String title;
         private LinkedList<String> artists;
         private String album;
         private String path;
+        private byte[] coverArt;
 
         public Builder() {
             this.title = "";
             this.artists = new LinkedList<String>();
             this.album = "";
             this.path = "";
+            this.coverArt = null;
         }
 
         public Builder setTitle(String title) {
@@ -90,8 +103,13 @@ public class Music {
             return this;
         }
 
+        public Builder setCoverArt(byte[] coverArt) {
+            this.coverArt = coverArt;
+            return this;
+        }
+
         public Music build() {
-            return new Music(title, artists, album, path);
+            return new Music(title, artists, album, path, coverArt);
         }
     }
 }

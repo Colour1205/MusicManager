@@ -13,6 +13,12 @@ import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.jaudiotagger.audio.AudioFile;
+import org.jaudiotagger.audio.AudioFileIO;
+import org.jaudiotagger.tag.FieldKey;
+import org.jaudiotagger.tag.Tag;
+import org.jaudiotagger.tag.images.Artwork;
+
 import com.musicmanager.entity.AppSettings;
 import com.musicmanager.entity.Lyric;
 import com.musicmanager.entity.Lyric.SyncType;
@@ -200,10 +206,7 @@ public class DataAccess implements ConvertLRCDataAccessInterface, AppSettingsDat
 
         if (!file.isDirectory()) {
             if (isAudioFile(file.getName())) {
-                musics.add(new Music.Builder()
-                        .setTitle(stripExtension(file.getName()))
-                        .setPath(file.getPath())
-                        .build());
+                musics.add(readMusic(file));
             }
             return;
         }
@@ -216,6 +219,49 @@ public class DataAccess implements ConvertLRCDataAccessInterface, AppSettingsDat
         for (File child : children) {
             listMusicFiles(child, musics);
         }
+    }
+
+    /**
+     * builds a Music from an audio file, preferring its embedded tag (title,
+     * artist, cover art) over the bare filename when one is readable; falls
+     * back to the filename alone otherwise
+     *
+     * @param file
+     * @return
+     */
+    private Music readMusic(File file) {
+        Music.Builder builder = new Music.Builder()
+                .setTitle(stripExtension(file.getName()))
+                .setPath(file.getPath());
+
+        try {
+            AudioFile audioFile = AudioFileIO.read(file);
+            Tag tag = audioFile.getTag();
+
+            if (tag != null) {
+                String title = tag.getFirst(FieldKey.TITLE);
+                if (title != null && !title.trim().isEmpty()) {
+                    builder.setTitle(title.trim());
+                }
+
+                String artist = tag.getFirst(FieldKey.ARTIST);
+                if (artist != null && !artist.trim().isEmpty()) {
+                    LinkedList<String> artists = new LinkedList<>();
+                    artists.add(artist.trim());
+                    builder.setArtists(artists);
+                }
+
+                Artwork artwork = tag.getFirstArtwork();
+                if (artwork != null) {
+                    builder.setCoverArt(artwork.getBinaryData());
+                }
+            }
+        } catch (Exception e) {
+            // no readable tag (unsupported/corrupt file); fall back to the
+            // filename-only Music already built above
+        }
+
+        return builder.build();
     }
 
     private boolean isAudioFile(String fileName) {

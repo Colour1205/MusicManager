@@ -66,6 +66,11 @@ public final class Theme {
         return new Font(FONT_FAMILY, Font.BOLD, STATUS_SIZE);
     }
 
+    /** same size as the status line but plain weight, for secondary captions like an artist name */
+    public static Font captionFont() {
+        return new Font(FONT_FAMILY, Font.PLAIN, STATUS_SIZE);
+    }
+
     private Theme() {
     }
 }
