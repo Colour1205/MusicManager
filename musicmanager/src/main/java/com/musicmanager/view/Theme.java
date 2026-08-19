@@ -14,15 +14,15 @@ public final class Theme {
     public static final Color SURFACE = Color.decode("#ECEEF2");
     public static final Color CARD_BACKGROUND = Color.decode("#FFFFFF");
     public static final Color BORDER = Color.decode("#E2E5EC");
-    public static final Color PRIMARY = Color.decode("#0B8A46");
-    public static final Color PRIMARY_HOVER = Color.decode("#076B36");
+    public static final Color PRIMARY = Color.decode("#4F46E5");
+    public static final Color PRIMARY_HOVER = Color.decode("#4338CA");
     public static final Color SECONDARY = Color.decode("#33363F");
     public static final Color SECONDARY_HOVER = Color.decode("#24262D");
     public static final Color TEXT_PRIMARY = Color.decode("#1A1D23");
     public static final Color TEXT_SECONDARY = Color.decode("#6B7280");
     public static final Color DISABLED = Color.decode("#C7CBD1");
-    public static final Color SUCCESS = PRIMARY; // reuse the app's accent green for success status text
-    public static final Color ERROR = Color.decode("#C0392B");
+    public static final Color SUCCESS = Color.decode("#2563EB"); // blue, not green, for "Converted" status text
+    public static final Color ERROR = Color.decode("#DC2626");
 
     // typography
     public static final String FONT_FAMILY = Font.SANS_SERIF;
