@@ -192,6 +192,7 @@ public class StandardizePresenter : IStandardizeLyricsOutputBoundary, IStandardi
         StandardizeState state = _viewModel.State;
         state.ArtistPlan = plan;
         state.ArtistUpdates = outputData.Updates;
+        state.ArtistRenameCount = outputData.Renames.Count;
         state.ArtistsSummary = AnalysisSummary(plan, outputData.Updates.Count);
         _viewModel.FirePropertyChange(StandardizeViewModel.ArtistsAnalysis);
     }
@@ -238,6 +239,28 @@ public class StandardizePresenter : IStandardizeLyricsOutputBoundary, IStandardi
         StandardizeState state = _viewModel.State;
         state.ArtistsAppliedSummary = text;
         _viewModel.FirePropertyChange(StandardizeViewModel.ArtistsApplied);
+    }
+
+    public void PresentRenamed(StandardizeArtistsRenameOutputData outputData)
+    {
+        List<string> parts = new List<string>();
+        if (outputData.RenamedCount > 0)
+        {
+            parts.Add("Renamed " + outputData.RenamedCount + (outputData.RenamedCount == 1 ? " song's files" : " songs' files")
+                + " to \"Artist - Title\"");
+        }
+        if (outputData.Skipped.Count != 0)
+        {
+            List<string> why = outputData.Skipped.Take(5)
+                .Select(skipped => Path.GetFileName(skipped.AudioPath) + ": " + skipped.Detail).ToList();
+            string more = outputData.Skipped.Count > 5 ? "\n... and " + (outputData.Skipped.Count - 5) + " more" : "";
+            parts.Add(outputData.Skipped.Count + (outputData.Skipped.Count == 1 ? " song was" : " songs were")
+                + " left as they are:\n" + string.Join("\n", why) + more);
+        }
+
+        StandardizeState state = _viewModel.State;
+        state.ArtistsRenamedSummary = string.Join(", ", parts);
+        _viewModel.FirePropertyChange(StandardizeViewModel.ArtistsRenamed);
     }
 
     public void PresentProgress(string message, int done, int total)

@@ -51,6 +51,7 @@ public sealed partial class ReviewPage : Page, ProcessFlow.IReviewPage, IBackHan
     // what the preview found (touched on the UI thread only)
     private ArtistPlan _currentPlan;
     private int _artistUpdateCount;
+    private int _renameCount; // songs whose files are not named "Artist - Title" after their tags: they are renamed with the rest
     private StandardizeLyricsOutputData _lyricsPreview;
     private bool _lyricsHasWork;
     private bool _busy;
@@ -65,6 +66,7 @@ public sealed partial class ReviewPage : Page, ProcessFlow.IReviewPage, IBackHan
     private readonly List<string> _runErrors = new List<string>();
     private volatile string _lyricsDoneSummary = "";
     private volatile string _artistsDoneSummary = "";
+    private volatile string _renamedDoneSummary = "";
 
     public ReviewPage(ProcessFlow.IHost host, StandardizeController controller, StandardizeViewModel viewModel,
             string folder, ISet<string> scope, StandardizeOptions options, IProcessPrompts prompts, Action onClosed)
@@ -225,7 +227,7 @@ public sealed partial class ReviewPage : Page, ProcessFlow.IReviewPage, IBackHan
         bool failed = HasErrors();
         _previewFailed = failed;
         _previewing = false;
-        bool work = (_doLyrics && _lyricsHasWork) || (_doArtists && _currentPlan != null && _artistUpdateCount > 0);
+        bool work = HasWork();
         if (failed)
         {
             string errors = string.Join("\n\n", ErrorsNow());
@@ -246,13 +248,15 @@ public sealed partial class ReviewPage : Page, ProcessFlow.IReviewPage, IBackHan
         }
         bool applyLyrics = _doLyrics && _lyricsHasWork;
         bool applyArtists = _doArtists && _currentPlan != null && _artistUpdateCount > 0;
-        if (!applyLyrics && !applyArtists)
+        bool applyRename = _doArtists && _currentPlan != null && _renameCount > 0;
+        if (!applyLyrics && !applyArtists && !applyRename)
         {
             return;
         }
 
         _lyricsDoneSummary = "";
         _artistsDoneSummary = "";
+        _renamedDoneSummary = "";
         ClearErrors();
         SetBusy(true);
         ArtistPlan plan = _currentPlan;
@@ -272,6 +276,11 @@ public sealed partial class ReviewPage : Page, ProcessFlow.IReviewPage, IBackHan
             {
                 _controller.StandardizeLyrics(_folder, false, trash, romanize, apiKey, model, _scope);
             }
+            // the files are named after the tags that were just written, last: the lyrics above find them by their old names
+            if (applyRename)
+            {
+                _controller.RenameFiles(plan);
+            }
         }, FinishApply);
     }
 
@@ -285,7 +294,7 @@ public sealed partial class ReviewPage : Page, ProcessFlow.IReviewPage, IBackHan
         {
             AddError("Standardizing stopped unexpectedly: " + Describe(failure));
         }
-        string done = ReviewText.ResultMessage(_artistsDoneSummary, _lyricsDoneSummary);
+        string done = ReviewText.ResultMessage(_artistsDoneSummary, _lyricsDoneSummary, _renamedDoneSummary);
         bool wroteSomething = done.Length != 0;
 
         if (!HasErrors())
@@ -457,11 +466,15 @@ public sealed partial class ReviewPage : Page, ProcessFlow.IReviewPage, IBackHan
                     ArtistPlan plan = state.ArtistPlan;
                     List<SongArtistUpdate> updates = state.ArtistUpdates;
                     string summary = state.ArtistsSummary;
-                    RunOnUiThread(() => ShowArtists(plan, updates, summary));
+                    int renames = state.ArtistRenameCount;
+                    RunOnUiThread(() => ShowArtists(plan, updates, summary, renames));
                     break;
                 }
             case StandardizeViewModel.ArtistsApplied:
                 _artistsDoneSummary = state.ArtistsAppliedSummary;
+                break;
+            case StandardizeViewModel.ArtistsRenamed:
+                _renamedDoneSummary = state.ArtistsRenamedSummary;
                 break;
             case StandardizeViewModel.Progress:
                 {
@@ -514,7 +527,7 @@ public sealed partial class ReviewPage : Page, ProcessFlow.IReviewPage, IBackHan
         UpdateApplyEnabled();
     }
 
-    private void ShowArtists(ArtistPlan plan, List<SongArtistUpdate> updates, string summary)
+    private void ShowArtists(ArtistPlan plan, List<SongArtistUpdate> updates, string summary, int renames)
     {
         if (_closed)
         {
@@ -536,6 +549,7 @@ public sealed partial class ReviewPage : Page, ProcessFlow.IReviewPage, IBackHan
             ApplyArtistSearch();
         }
         _artistUpdateCount = updates.Count;
+        _renameCount = renames;
         SetSummary(Artists, summary);
 
         var cards = new List<ResultCardItem>();
@@ -556,7 +570,7 @@ public sealed partial class ReviewPage : Page, ProcessFlow.IReviewPage, IBackHan
         SetSummary(Changes,
                 updates.Count == 0 ? "No tags will change"
                         : values + " tag values in " + ReviewText.SongCount(updates.Count) + " will be rewritten",
-                "Double check to make sure");
+                renames == 0 ? "Double check to make sure" : "Double check to make sure\n" + ReviewText.RenameNote(renames));
         UpdateSkeletons();
         UpdateApplyEnabled();
     }
@@ -662,8 +676,14 @@ public sealed partial class ReviewPage : Page, ProcessFlow.IReviewPage, IBackHan
 
     private void UpdateApplyEnabled()
     {
-        bool work = (_doLyrics && _lyricsHasWork) || (_doArtists && _currentPlan != null && _artistUpdateCount > 0);
-        ApplyButton.IsEnabled = !_busy && !_applied && !_previewFailed && work;
+        ApplyButton.IsEnabled = !_busy && !_applied && !_previewFailed && HasWork();
+    }
+
+    /// <summary>something to write: lyrics, tags, or files named differently from their tags</summary>
+    private bool HasWork()
+    {
+        return (_doLyrics && _lyricsHasWork)
+                || (_doArtists && _currentPlan != null && (_artistUpdateCount > 0 || _renameCount > 0));
     }
 
     // the error messages arrive on worker threads and are read on the UI thread when a run is over
@@ -714,6 +734,9 @@ public sealed partial class ReviewPage : Page, ProcessFlow.IReviewPage, IBackHan
     public bool LyricsPreviewHasWork => _lyricsHasWork;
 
     public int ArtistUpdateCount => _artistUpdateCount;
+
+    /// <summary>how many songs have files that will be renamed to "Artist - Title"</summary>
+    public int RenameCount => _renameCount;
 
     /// <summary>how often the lyrics action list of the last preview contains this action</summary>
     public int LyricsPreviewCount(LyricsAction action)

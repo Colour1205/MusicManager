@@ -10,6 +10,7 @@ public class StandardizeViewModel : ViewModel<StandardizeState>
     public const string Lyrics = "lyrics";
     public const string ArtistsAnalysis = "artistsAnalysis";
     public const string ArtistsApplied = "artistsApplied";
+    public const string ArtistsRenamed = "artistsRenamed";
     public const string Progress = "progress";
     public const string Error = "error";
 

@@ -168,6 +168,10 @@ public class ProcessFlowTest
         {
         }
 
+        public void RenameFiles(StandardizeArtistsApplyInputData inputData)
+        {
+        }
+
         public bool IsApiKeyAvailable
         {
             get

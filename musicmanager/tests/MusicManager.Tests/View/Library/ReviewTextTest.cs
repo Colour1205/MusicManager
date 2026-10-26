@@ -359,4 +359,20 @@ public class ReviewTextTest
                 new HashSet<string> { "/not-in-the-folder.flac" });
         Assert.Empty(ReviewText.GroupsInScope(plan));
     }
+
+    [Fact]
+    public void TheResultMessageHasAPartForTheFileNamesBetweenArtistsAndLyrics()
+    {
+        Assert.Equal("Artists: Updated 3 songs\n\nFile names: Renamed 3 songs' files\n\nLyrics: done",
+                ReviewText.ResultMessage("Updated 3 songs", "done", "Renamed 3 songs' files"));
+        Assert.Equal("File names: Renamed 2 songs' files", ReviewText.ResultMessage("", "", "Renamed 2 songs' files"));
+        Assert.Equal("Artists: Updated 3 songs", ReviewText.ResultMessage("Updated 3 songs", "", null));
+    }
+
+    [Fact]
+    public void ThePreviewSaysHowManySongsHaveFilesThatWillBeRenamed()
+    {
+        Assert.Equal("1 song's files will be renamed to \"Artist - Title\" after their tags", ReviewText.RenameNote(1));
+        Assert.Equal("373 songs' files will be renamed to \"Artist - Title\" after their tags", ReviewText.RenameNote(373));
+    }
 }

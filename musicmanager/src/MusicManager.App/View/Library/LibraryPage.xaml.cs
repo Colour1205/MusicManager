@@ -228,6 +228,18 @@ public sealed partial class LibraryPage : Page
         _scanning = 0;
     }
 
+    /// <summary>reads the folder again, as when it was opened, but keeps the filter and the search the user had</summary>
+    private void Reload()
+    {
+        Chip chip = _chip;
+        string search = SearchBox.Text;
+        Open(_folder);
+        _chip = chip;
+        SetChipChecked(chip);
+        SearchBox.Text = search;
+        ApplyFilter();
+    }
+
     /// <summary>these songs were changed by a run: read their tags again and check their lyrics again</summary>
     public void RefreshSongs(IEnumerable<string> audioPaths)
     {
@@ -238,6 +250,13 @@ public sealed partial class LibraryPage : Page
         var paths = new HashSet<string>(audioPaths);
         if (paths.Count == 0)
         {
+            return;
+        }
+        if (paths.Any(path => !File.Exists(path)))
+        {
+            // a song's files were renamed (to "Artist - Title" after its tags): the list holds paths that are gone, and the
+            // new ones are in no list, so the folder is read again
+            Reload();
             return;
         }
         string refreshFolder = _folder;

@@ -273,9 +273,24 @@ public static class ReviewText
     /// <summary>What the result dialog says: the artists part, then the lyrics part, each with its own lines.</summary>
     public static string ResultMessage(string artistsSummary, string lyricsSummary)
     {
+        return ResultMessage(artistsSummary, lyricsSummary, "");
+    }
+
+    /// <summary>The same, with a part about the file names that were changed to "Artist - Title" between the two.</summary>
+    public static string ResultMessage(string artistsSummary, string lyricsSummary, string renamedSummary)
+    {
         string artists = artistsSummary == null ? "" : JavaString.Trim(artistsSummary);
         string lyrics = lyricsSummary == null ? "" : JavaString.Trim(lyricsSummary);
-        return JavaString.Trim((artists.Length == 0 ? "" : "Artists: " + artists + "\n\n") + (lyrics.Length == 0 ? "" : "Lyrics: " + lyrics));
+        string renamed = renamedSummary == null ? "" : JavaString.Trim(renamedSummary);
+        return JavaString.Trim((artists.Length == 0 ? "" : "Artists: " + artists + "\n\n")
+                + (renamed.Length == 0 ? "" : "File names: " + renamed + "\n\n")
+                + (lyrics.Length == 0 ? "" : "Lyrics: " + lyrics));
+    }
+
+    /// <summary>The line of the preview that says the files will be renamed too.</summary>
+    public static string RenameNote(int songs)
+    {
+        return songs + (songs == 1 ? " song's files" : " songs' files") + " will be renamed to \"Artist - Title\" after their tags";
     }
 
     /// <summary>True if the options use Claude and no key was typed, so the environment has to be asked for one.</summary>

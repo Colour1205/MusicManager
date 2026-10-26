@@ -25,6 +25,10 @@ public class StandardizeState
     public string ArtistsSummary { get; set; } = "";
 
     public string ArtistsAppliedSummary { get; set; } = "";
+    /// <summary>how many songs have files that are not named "Artist - Title" after their tags (they are renamed when the changes are applied)</summary>
+    public int ArtistRenameCount { get; set; }
+    /// <summary>what renaming the files to "Artist - Title" did, in a sentence ("" when it did nothing)</summary>
+    public string ArtistsRenamedSummary { get; set; } = "";
 
     // progress / errors
     public string ProgressMessage { get; set; } = "";

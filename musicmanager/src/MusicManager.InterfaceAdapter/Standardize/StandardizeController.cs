@@ -72,5 +72,14 @@ public class StandardizeController
         _artistsInteractor.Apply(new StandardizeArtistsApplyInputData(plan));
     }
 
+    /// <summary>
+    /// renames the plan's songs' files to "Artist - Title" after their tags; call it last (after ApplyArtists and the
+    /// lyrics), because the lyrics are found by the old file names
+    /// </summary>
+    public void RenameFiles(ArtistPlan plan)
+    {
+        _artistsInteractor.RenameFiles(new StandardizeArtistsApplyInputData(plan));
+    }
+
     public bool IsApiKeyAvailable => _artistsInteractor.IsApiKeyAvailable;
 }

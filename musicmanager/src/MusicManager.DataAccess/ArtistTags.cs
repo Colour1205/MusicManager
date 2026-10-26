@@ -37,7 +37,8 @@ public static class ArtistTags
                     continue;
                 }
                 songs.Add(new SongArtistTags(file, Values(tag, AudioTags.Field.Artist),
-                        Values(tag, AudioTags.Field.AlbumArtist), Values(tag, AudioTags.Field.Artists)));
+                        Values(tag, AudioTags.Field.AlbumArtist), Values(tag, AudioTags.Field.Artists),
+                        Values(tag, AudioTags.Field.Title).FirstOrDefault()));
             }
             catch (Exception)
             {
@@ -45,6 +46,25 @@ public static class ArtistTags
             }
         }
         return songs;
+    }
+
+    /// <summary>
+    /// the artists and the title a file is named after: the ARTIST values (the ALBUMARTIST ones when there are none) and the
+    /// TITLE; the artists are empty and the title null when the file has no such tag
+    /// </summary>
+    public static (List<string> Artists, string Title) ReadNameParts(string file)
+    {
+        using AudioTags tag = AudioTags.Open(file);
+        if (!tag.HasTag)
+        {
+            return (new List<string>(), null);
+        }
+        List<string> artists = Values(tag, AudioTags.Field.Artist);
+        if (artists.Count == 0)
+        {
+            artists = Values(tag, AudioTags.Field.AlbumArtist);
+        }
+        return (artists, Values(tag, AudioTags.Field.Title).FirstOrDefault());
     }
 
     /// <summary>every regular file under root (Files.walk): just root itself if that is a file</summary>

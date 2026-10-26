@@ -61,6 +61,17 @@ public class StandardizeArtistsInteractorTest
             Written.Add(update);
             return true;
         }
+
+        public readonly List<(string Path, string Separator)> Renamed = new List<(string Path, string Separator)>();
+        public readonly Dictionary<string, SongRenameResult.Kind> RenameOutcome = new Dictionary<string, SongRenameResult.Kind>();
+
+        public SongRenameResult RenameSongFiles(string audioPath, string separator)
+        {
+            Renamed.Add((audioPath, separator));
+            SongRenameResult.Kind kind = RenameOutcome.TryGetValue(audioPath, out SongRenameResult.Kind outcome)
+                    ? outcome : SongRenameResult.Kind.Renamed;
+            return new SongRenameResult(kind, audioPath, audioPath + ".new", kind == SongRenameResult.Kind.Renamed ? "" : "why");
+        }
     }
 
     private sealed class Capture : IStandardizeArtistsOutputBoundary
@@ -78,6 +89,13 @@ public class StandardizeArtistsInteractorTest
         public void PresentApplied(StandardizeArtistsApplyOutputData outputData)
         {
             Applied = outputData;
+        }
+
+        public StandardizeArtistsRenameOutputData Renamed;
+
+        public void PresentRenamed(StandardizeArtistsRenameOutputData outputData)
+        {
+            Renamed = outputData;
         }
 
         public void PresentProgress(string message, int done, int total)
@@ -395,6 +413,102 @@ public class StandardizeArtistsInteractorTest
         Assert.Equal("song1.flac", _data.Written[0].AudioPath);
         Assert.Equal(1, _output.Applied.UpdatedCount);
         Assert.True(2 == _output.Applied.UnchangedCount, "of the 3 chosen songs, 2 were already right");
+    }
+
+    // ---- file names ----
+
+    private void LibraryWithTitles(params (string Artist, string Title, string File)[] songs)
+    {
+        _data.Songs = songs.Select(song => new SongArtistTags(song.File, new List<string> { song.Artist }, new List<string>(),
+                new List<string>(), song.Title)).ToList();
+    }
+
+    [Fact]
+    public void TheFilesOfASongAreRenamedToTheStandardizedArtistDashTheTitle()
+    {
+        LibraryWithTitles(("에스파 (aespa)", "Next Level", "library/에스파 (aespa) - Next Level.flac"),
+                ("aespa", "Savage", "library/aespa - Savage.flac"));
+        Answer("에스파 (aespa)", Artist("에스파 (aespa)", "aespa"));
+        Answer("aespa", Artist("aespa", "aespa"));
+        Analyze(true, "key");
+
+        Assert.Single(_output.Analysis.Renames);
+        Assert.Equal("aespa - Next Level", _output.Analysis.Renames[0].NewBaseName);
+
+        _interactor.RenameFiles(new StandardizeArtistsApplyInputData(_output.Analysis.Plan));
+
+        Assert.Equal(new List<(string, string)> { ("library/에스파 (aespa) - Next Level.flac", "; ") }, _data.Renamed);
+        Assert.Equal(1, _output.Renamed.RenamedCount);
+        Assert.Empty(_output.Renamed.Skipped);
+    }
+
+    [Fact]
+    public void FilesAreRenamedAlsoWhenNoTagChangesBecauseTheTagsAreAlreadyStandard()
+    {
+        LibraryWithTitles(("aespa", "Next Level", "library/old name.flac"));
+        Answer("aespa", Artist("aespa", "aespa"));
+        Analyze(true, "key");
+
+        Assert.Empty(_output.Analysis.Updates);
+        Assert.Single(_output.Analysis.Renames);
+
+        _interactor.RenameFiles(new StandardizeArtistsApplyInputData(_output.Analysis.Plan));
+
+        Assert.Equal(1, _output.Renamed.RenamedCount);
+    }
+
+    [Fact]
+    public void AFileThatIsNamedRightAlreadyIsNotAskedToBeRenamed()
+    {
+        LibraryWithTitles(("aespa", "Next Level", "library/aespa - Next Level.flac"));
+        Answer("aespa", Artist("aespa", "aespa"));
+        Analyze(true, "key");
+
+        _interactor.RenameFiles(new StandardizeArtistsApplyInputData(_output.Analysis.Plan));
+
+        Assert.Empty(_output.Analysis.Renames);
+        Assert.Empty(_data.Renamed);
+        Assert.Equal(0, _output.Renamed.RenamedCount);
+    }
+
+    [Fact]
+    public void ASongThatCannotBeRenamedIsReportedWithItsReasonAndTheOthersAreStillDone()
+    {
+        LibraryWithTitles(("aespa", "A", "library/a.flac"), ("aespa", "B", "library/b.flac"), ("aespa", "C", "library/c.flac"));
+        Answer("aespa", Artist("aespa", "aespa"));
+        Analyze(true, "key");
+        _data.RenameOutcome["library/b.flac"] = SongRenameResult.Kind.Exists;
+        _data.RenameOutcome["library/c.flac"] = SongRenameResult.Kind.AlreadyNamed;
+
+        _interactor.RenameFiles(new StandardizeArtistsApplyInputData(_output.Analysis.Plan));
+
+        Assert.Equal(1, _output.Renamed.RenamedCount);
+        Assert.Equal(1, _output.Renamed.AlreadyNamedCount);
+        Assert.Single(_output.Renamed.Skipped);
+        Assert.Equal("library/b.flac", _output.Renamed.Skipped[0].AudioPath);
+        Assert.Equal(3, _data.Renamed.Count);
+    }
+
+    [Fact]
+    public void OnlyTheChosenSongsGetTheirFilesRenamed()
+    {
+        LibraryWithTitles(("aespa", "A", "song0.flac"), ("aespa", "B", "song1.flac"), ("aespa", "C", "song2.flac"));
+        Answer("aespa", Artist("aespa", "aespa"));
+        AnalyzeScoped(true, "song1.flac");
+
+        _interactor.RenameFiles(new StandardizeArtistsApplyInputData(_output.Analysis.Plan));
+
+        Assert.Equal(new List<string> { "song1.flac" }, _data.Renamed.Select(r => r.Path).ToList());
+    }
+
+    [Fact]
+    public void ASongWithoutATitleHasNothingToBeNamedAfter()
+    {
+        LibraryOf("aespa"); // no title tag
+        Answer("aespa", Artist("aespa", "aespa"));
+        Analyze(true, "key");
+
+        Assert.Empty(_output.Analysis.Renames);
     }
 
     [Fact]

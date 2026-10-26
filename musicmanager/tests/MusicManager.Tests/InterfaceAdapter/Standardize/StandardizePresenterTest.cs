@@ -316,4 +316,60 @@ public class StandardizePresenterTest
         Assert.Equal("Grouped by AI. Check the names marked in red.  \u00B7  1 warning(s)", Lines(ArtistsSummary(plan))[1]);
         Assert.Equal(new List<string> { "artistsAnalysis" }, _events);
     }
+
+    // ---- file names ----
+
+    [Fact]
+    public void RenamedFilesAreToldInOneSentenceWithThePlacesThatWereLeftAsTheyAre()
+    {
+        _presenter.PresentRenamed(new StandardizeArtistsRenameOutputData(3, 1, new List<SongRenameResult>()));
+
+        Assert.Equal("Renamed 3 songs' files to \"Artist - Title\"", _viewModel.State.ArtistsRenamedSummary);
+        Assert.Equal(new List<string> { "artistsRenamed" }, _events);
+    }
+
+    [Fact]
+    public void OneRenamedSongIsSingular()
+    {
+        _presenter.PresentRenamed(new StandardizeArtistsRenameOutputData(1, 0, new List<SongRenameResult>()));
+
+        Assert.Equal("Renamed 1 song's files to \"Artist - Title\"", _viewModel.State.ArtistsRenamedSummary);
+    }
+
+    [Fact]
+    public void SongsThatWereNotRenamedAreListedWithTheirReasonsAndTheListIsCut()
+    {
+        List<SongRenameResult> skipped = new List<SongRenameResult>();
+        for (int i = 1; i <= 7; i++)
+        {
+            skipped.Add(new SongRenameResult(SongRenameResult.Kind.Exists, "C:\\music\\a" + i + ".flac", "C:\\music\\a" + i + ".flac", "taken " + i));
+        }
+
+        _presenter.PresentRenamed(new StandardizeArtistsRenameOutputData(2, 0, skipped));
+
+        string[] lines = Lines(_viewModel.State.ArtistsRenamedSummary);
+        Assert.Equal("Renamed 2 songs' files to \"Artist - Title\", 7 songs were left as they are:", lines[0]);
+        Assert.Equal("a1.flac: taken 1", lines[1]);
+        Assert.Equal("a5.flac: taken 5", lines[5]);
+        Assert.Equal("... and 2 more", lines[6]);
+    }
+
+    [Fact]
+    public void NothingRenamedAndNothingSkippedSaysNothing()
+    {
+        _presenter.PresentRenamed(new StandardizeArtistsRenameOutputData(0, 4, new List<SongRenameResult>()));
+
+        Assert.Equal("", _viewModel.State.ArtistsRenamedSummary);
+    }
+
+    [Fact]
+    public void TheAnalysisCarriesHowManySongsHaveFilesToRename()
+    {
+        ArtistPlan plan = ArtistStandardizer.BuildPlan(new List<SongArtistTags>(), new Dictionary<string, List<ParsedArtist>>(), "; ", false);
+        List<SongRename> renames = new List<SongRename> { new SongRename("a.flac", "A - B"), new SongRename("b.flac", "A - C") };
+
+        _presenter.PresentAnalysis(new StandardizeArtistsAnalysisOutputData(plan, new List<SongArtistUpdate>(), renames));
+
+        Assert.Equal(2, _viewModel.State.ArtistRenameCount);
+    }
 }

@@ -11,6 +11,12 @@ public interface IStandardizeArtistsInputBoundary
     /// <summary>writes the (possibly user-edited) plan to the audio files' tags</summary>
     void Apply(StandardizeArtistsApplyInputData inputData);
 
+    /// <summary>
+    /// renames the files of the plan's songs to "Artist - Title" after the tags they have now (so after Apply, and after
+    /// the lyrics, which find the files by their old names); a song whose files already have that name is left alone
+    /// </summary>
+    void RenameFiles(StandardizeArtistsApplyInputData inputData);
+
     /// <summary>whether an API key can be found without the user typing one</summary>
     bool IsApiKeyAvailable { get; }
 }

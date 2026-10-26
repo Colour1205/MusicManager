@@ -87,6 +87,10 @@ public class SongPreviewLoaderTest
         {
         }
 
+        public void RenameFiles(StandardizeArtistsApplyInputData inputData)
+        {
+        }
+
         public bool IsApiKeyAvailable => true;
     }
 

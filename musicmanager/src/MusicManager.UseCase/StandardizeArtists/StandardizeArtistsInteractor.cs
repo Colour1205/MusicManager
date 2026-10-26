@@ -71,15 +71,15 @@ public class StandardizeArtistsInteractor : IStandardizeArtistsInputBoundary
         ArtistPlan plan = ArtistStandardizer.BuildPlan(songs, parsed, inputData.Separator, usedAi,
                 inputData.AudioPaths);
         plan.Warnings.AddRange(notes);
-        _outputBoundary.PresentAnalysis(
-                new StandardizeArtistsAnalysisOutputData(plan, ArtistStandardizer.ComputeUpdates(plan)));
+        _outputBoundary.PresentAnalysis(new StandardizeArtistsAnalysisOutputData(plan,
+                ArtistStandardizer.ComputeUpdates(plan), ArtistStandardizer.ComputeRenames(plan)));
     }
 
     public void Review(StandardizeArtistsApplyInputData inputData)
     {
         ArtistPlan plan = inputData.Plan;
-        _outputBoundary.PresentAnalysis(
-                new StandardizeArtistsAnalysisOutputData(plan, ArtistStandardizer.ComputeUpdates(plan)));
+        _outputBoundary.PresentAnalysis(new StandardizeArtistsAnalysisOutputData(plan,
+                ArtistStandardizer.ComputeUpdates(plan), ArtistStandardizer.ComputeRenames(plan)));
     }
 
     public void Apply(StandardizeArtistsApplyInputData inputData)
@@ -104,6 +104,38 @@ public class StandardizeArtistsInteractor : IStandardizeArtistsInputBoundary
 
         _outputBoundary.PresentApplied(
                 new StandardizeArtistsApplyOutputData(updated, plan.ScopedSongCount - updates.Count, failed));
+    }
+
+    public void RenameFiles(StandardizeArtistsApplyInputData inputData)
+    {
+        ArtistPlan plan = inputData.Plan;
+        // the songs whose files are not named after their tags (as the plan sees them: the tags are read again for each
+        // one when it is renamed, so a tag that could not be written does not make a wrong name)
+        List<SongRename> renames = ArtistStandardizer.ComputeRenames(plan);
+
+        int renamed = 0;
+        int alreadyNamed = 0;
+        List<SongRenameResult> skipped = new List<SongRenameResult>();
+        int done = 0;
+        foreach (SongRename rename in renames)
+        {
+            SongRenameResult result = _dataAccess.RenameSongFiles(rename.AudioPath, plan.Separator);
+            switch (result.Status)
+            {
+                case SongRenameResult.Kind.Renamed:
+                    renamed++;
+                    break;
+                case SongRenameResult.Kind.AlreadyNamed:
+                    alreadyNamed++;
+                    break;
+                default:
+                    skipped.Add(result);
+                    break;
+            }
+            _outputBoundary.PresentProgress("Renaming files...", ++done, renames.Count);
+        }
+
+        _outputBoundary.PresentRenamed(new StandardizeArtistsRenameOutputData(renamed, alreadyNamed, skipped));
     }
 
     public bool IsApiKeyAvailable => _dataAccess.ReadApiKeyFromEnvironment() != null;

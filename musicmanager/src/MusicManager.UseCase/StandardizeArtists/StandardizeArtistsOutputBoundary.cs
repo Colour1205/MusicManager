@@ -8,6 +8,9 @@ public interface IStandardizeArtistsOutputBoundary
     /// <summary>the plan was written to the files</summary>
     void PresentApplied(StandardizeArtistsApplyOutputData outputData);
 
+    /// <summary>the files of the songs were renamed after their tags</summary>
+    void PresentRenamed(StandardizeArtistsRenameOutputData outputData);
+
     /// <summary>a long step made progress (done/total may be 0 when unknown)</summary>
     void PresentProgress(string message, int done, int total);
 

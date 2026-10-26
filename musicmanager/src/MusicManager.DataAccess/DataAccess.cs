@@ -211,6 +211,11 @@ public class DataAccess : IConvertLRCDataAccess, IAppSettingsDataAccess, IOpenLi
         return ArtistTags.Write(update);
     }
 
+    public virtual SongRenameResult RenameSongFiles(string audioPath, string separator)
+    {
+        return SongRenamer.Rename(audioPath, separator);
+    }
+
     // ---- romaji (part of IStandardizeLyricsDataAccess; delegates to ClaudeRomanizer and its disk cache) ----
 
     public virtual RomajiEstimate EstimateRomaji(List<RomajiLine> lines)

@@ -26,4 +26,12 @@ public interface IStandardizeArtistsDataAccess
 
     /// <summary>writes the update to the audio file and verifies it by reading it back; returns true on success</summary>
     bool WriteArtistTags(SongArtistUpdate update);
+
+    /// <summary>
+    /// Renames the audio file, and the .lrc/.ttml/.hmrc files that share its name, to "Artist - Title" after the ARTIST and
+    /// TITLE tags the file has now (see <see cref="StandardFileName"/>). Nothing is overwritten and nothing is left half
+    /// done: when a name is taken, too long, or a file cannot be renamed, no file of the song is renamed.
+    /// </summary>
+    /// <param name="separator">between the artists of a song that has several</param>
+    SongRenameResult RenameSongFiles(string audioPath, string separator);
 }

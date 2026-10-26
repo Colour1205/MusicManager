@@ -948,6 +948,50 @@ public static class ArtistStandardizer
         return updates;
     }
 
+    /// <summary>
+    /// The songs whose files are not named "Artist - Title" after the tags they will have (the artists as the plan names
+    /// them now, the title they have): for those the files get renamed, whether or not a tag changes. A song without an
+    /// artist or without a title has nothing to name it after. Only songs in the plan's scope are considered.
+    /// </summary>
+    public static List<SongRename> ComputeRenames(ArtistPlan plan)
+    {
+        List<SongRename> renames = new List<SongRename>();
+        if (plan == null || plan.Songs == null)
+        {
+            return renames;
+        }
+        Dictionary<string, string> nameByKey = new Dictionary<string, string>();
+        if (plan.Groups != null)
+        {
+            foreach (ArtistGroup group in plan.Groups)
+            {
+                nameByKey[group.Key] = NameOf(group);
+            }
+        }
+        IDictionary<string, List<string>> keysByRaw = plan.GroupKeysByRaw == null
+                ? new Dictionary<string, List<string>>() : plan.GroupKeysByRaw;
+        string sep = string.IsNullOrEmpty(plan.Separator) ? DefaultSeparator : plan.Separator;
+
+        foreach (SongArtistTags song in plan.Songs)
+        {
+            if (song == null || !plan.IsInScope(song))
+            {
+                continue;
+            }
+            List<string> artistNames = NamesFor(song.Artist, keysByRaw, nameByKey);
+            if (artistNames.Count == 0)
+            {
+                artistNames = NamesFor(song.AlbumArtist, keysByRaw, nameByKey);
+            }
+            string wanted = StandardFileName.Build(artistNames, song.Title, sep);
+            if (wanted != null && !string.Equals(wanted, Path.GetFileNameWithoutExtension(song.Path), StringComparison.Ordinal))
+            {
+                renames.Add(new SongRename(song.Path, wanted));
+            }
+        }
+        return renames;
+    }
+
     private static string NameOf(ArtistGroup group)
     {
         string name = NormalizeRaw(group.CanonicalName);
