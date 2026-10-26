@@ -1,0 +1,75 @@
+<Page
+    x:Class="MusicManager.App.View.Library.HomePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    NavigationCacheMode="Required">
+
+    <!-- The start page: the music folder and the one accent button, Open. What to do with the songs is decided on the next page. -->
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <Grid Padding="{StaticResource PagePadding}">
+            <StackPanel
+                MaxWidth="640"
+                Margin="0,24,0,0"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Top"
+                Spacing="16">
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Music Manager" Style="{StaticResource TitleTextBlockStyle}" />
+                    <TextBlock
+                        Style="{StaticResource BodyTextBlockStyle}"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        TextWrapping="Wrap"
+                        Text="Open a folder to see its songs, then clean up lyrics, romaji and artist names: all at once, or one song at a time." />
+                </StackPanel>
+
+                <Border Style="{StaticResource CardBorderStyle}">
+                    <StackPanel Spacing="12">
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="Music folder" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                            <TextBlock
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Text="The folder that holds your songs." />
+                        </StackPanel>
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox
+                                x:Name="PathBox"
+                                Grid.Column="0"
+                                AutomationProperties.Name="Music folder"
+                                PlaceholderText="Paste or browse to a folder"
+                                KeyDown="PathBox_KeyDown"
+                                TextChanged="PathBox_TextChanged" />
+                            <Button
+                                x:Name="BrowseButton"
+                                Grid.Column="1"
+                                Click="BrowseButton_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon Glyph="&#xE8B7;" FontSize="16" />
+                                    <TextBlock Text="Browse" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <InfoBar
+                    x:Name="MessageBar"
+                    IsOpen="False"
+                    IsClosable="True"
+                    Severity="Warning" />
+
+                <Button
+                    x:Name="OpenButton"
+                    HorizontalAlignment="Right"
+                    Style="{StaticResource AccentButtonStyle}"
+                    Content="Open"
+                    Click="OpenButton_Click" />
+            </StackPanel>
+        </Grid>
+    </ScrollViewer>
+</Page>

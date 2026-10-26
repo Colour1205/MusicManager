@@ -1,0 +1,297 @@
+﻿<ContentDialog
+    x:Class="MusicManager.App.View.Library.OptionsDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Options"
+    PrimaryButtonText="Save"
+    CloseButtonText="Cancel"
+    DefaultButton="Primary"
+    PrimaryButtonClick="OnSaveClick">
+
+    <!--
+      The Options dialog: what Process does to the songs you pick. Stock ContentDialog (Enter = Save, Esc = Cancel, the
+      content scrolls when it is taller than the window), grouped in "settings cards" like the Windows Settings app: a
+      card per topic, a row per option with its description under it and the ToggleSwitch on the right.
+    -->
+    <ContentDialog.Resources>
+        <x:Double x:Key="ContentDialogMaxWidth">680</x:Double>
+        <x:Double x:Key="ContentDialogMaxHeight">1400</x:Double>
+
+        <Style x:Key="OptionRowStyle"
+                TargetType="Grid">
+            <Setter Property="Padding"
+                    Value="16,12"/>
+            <Setter Property="ColumnSpacing"
+                    Value="16"/>
+        </Style>
+        <Style x:Key="OptionTitleStyle"
+                TargetType="TextBlock"
+                BasedOn="{StaticResource BodyTextBlockStyle}">
+            <Setter Property="TextWrapping"
+                    Value="Wrap"/>
+        </Style>
+        <Style x:Key="OptionDescriptionStyle"
+                TargetType="TextBlock"
+                BasedOn="{StaticResource CaptionTextBlockStyle}">
+            <Setter Property="Foreground"
+                    Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+            <Setter Property="TextWrapping"
+                    Value="Wrap"/>
+        </Style>
+        <Style x:Key="OptionSwitchStyle"
+                TargetType="ToggleSwitch">
+            <Setter Property="OnContent"
+                    Value=""/>
+            <Setter Property="OffContent"
+                    Value=""/>
+            <Setter Property="MinWidth"
+                    Value="0"/>
+            <Setter Property="HorizontalAlignment"
+                    Value="Right"/>
+            <Setter Property="VerticalAlignment"
+                    Value="Center"/>
+        </Style>
+        <Style x:Key="OptionDividerStyle"
+                TargetType="Rectangle">
+            <Setter Property="Height"
+                    Value="1"/>
+            <Setter Property="Fill"
+                    Value="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+        </Style>
+    </ContentDialog.Resources>
+
+    <!-- the dialog's own scroll viewer does not scroll: this one does, and the code limits its height to the window's -->
+    <ScrollViewer x:Name="ContentScroller"
+            VerticalScrollBarVisibility="Auto"
+            HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Spacing="12"
+                Margin="0,0,16,0">
+            <TextBlock Style="{StaticResource OptionDescriptionStyle}"
+                       Text="What Process does to the songs you pick. You see a review before anything is written."/>
+
+            <!-- the deprecated Convert mode (AppFeatures.LegacyConvertLrc): a second page of the dialog -->
+            <SelectorBar x:Name="ModeBar"
+                    Visibility="Collapsed"
+                    SelectionChanged="OnModeChanged">
+                <SelectorBarItem x:Name="StandardizeModeItem"
+                        Text="Standardize"/>
+                <SelectorBarItem x:Name="ConvertModeItem"
+                        Text="Convert formats"/>
+            </SelectorBar>
+
+            <StackPanel x:Name="StandardizePanel"
+                    Spacing="8">
+
+                <!-- lyrics -->
+                <Border Style="{StaticResource CardBorderStyle}"
+                        Padding="0">
+                    <StackPanel>
+                        <Grid x:Name="LyricsRow"
+                                Style="{StaticResource OptionRowStyle}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Spacing="2"
+                                    VerticalAlignment="Center">
+                                <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}"
+                                        Text="Standardize lyrics"/>
+                                <TextBlock Style="{StaticResource OptionDescriptionStyle}"
+                                           Text="One word-synced .lrc per song, built from the .ttml (or .hmrc) when there is one; an existing .lrc is cleaned up."/>
+                                <TextBlock Style="{StaticResource OptionDescriptionStyle}"
+                                           Text="Deprecated .ttml and .hmrc files are deleted once the new file is checked. Songs with only a line-synced .lrc keep it."/>
+                            </StackPanel>
+                            <ToggleSwitch x:Name="LyricsSwitch"
+                                    Grid.Column="1"
+                                    Style="{StaticResource OptionSwitchStyle}"
+                                    VerticalAlignment="Top"
+                                          AutomationProperties.Name="Standardize lyrics"
+                                    Toggled="OnSwitchToggled"/>
+                        </Grid>
+
+                        <Rectangle Style="{StaticResource OptionDividerStyle}"/>
+
+                        <Grid x:Name="RomajiRow"
+                                Style="{StaticResource OptionRowStyle}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Spacing="2"
+                                    VerticalAlignment="Center">
+                                <TextBlock Style="{StaticResource OptionTitleStyle}"
+                                           Text="Add romaji for Korean and Japanese (uses Claude)"/>
+                                <TextBlock x:Name="RomajiAddsText"
+                                        Style="{StaticResource OptionDescriptionStyle}"/>
+                                <!-- the sentence the user asked to be told clearly: older romaji in Chinese characters IS replaced -->
+                                <TextBlock x:Name="RomajiReplacesText"
+                                        Style="{StaticResource BodyStrongTextBlockStyle}"
+                                           TextWrapping="Wrap"
+                                        Margin="0,4,0,0"/>
+                                <TextBlock x:Name="RomajiKeepsText"
+                                        Style="{StaticResource CaptionTextBlockStyle}"
+                                           TextWrapping="Wrap"/>
+                                <TextBlock Style="{StaticResource OptionDescriptionStyle}"
+                                        Margin="0,4,0,0"
+                                           Text="Works on any .lrc, with or without word timing. No .ttml or .hmrc is needed."/>
+                            </StackPanel>
+                            <ToggleSwitch x:Name="RomajiSwitch"
+                                    Grid.Column="1"
+                                    Style="{StaticResource OptionSwitchStyle}"
+                                    VerticalAlignment="Top"
+                                          AutomationProperties.Name="Add romaji for Korean and Japanese"
+                                          ToolTipService.ToolTip="Claude romanizes each line once; answers are saved, so a rerun never pays twice. The review shows how many lines and requests it takes before anything is sent."
+                                          Toggled="OnSwitchToggled"/>
+                        </Grid>
+
+                        <Rectangle Style="{StaticResource OptionDividerStyle}"/>
+
+                        <Grid x:Name="RecycleRow"
+                                Style="{StaticResource OptionRowStyle}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Spacing="2"
+                                    VerticalAlignment="Center">
+                                <TextBlock Style="{StaticResource OptionTitleStyle}"
+                                           Text="Send deprecated files to the Recycle Bin"/>
+                                <TextBlock Style="{StaticResource OptionDescriptionStyle}"
+                                           Text="Off: they are permanently deleted. On: they are moved to the Windows Recycle Bin, so you can restore them."/>
+                            </StackPanel>
+                            <ToggleSwitch x:Name="RecycleSwitch"
+                                    Grid.Column="1"
+                                    Style="{StaticResource OptionSwitchStyle}"
+                                          AutomationProperties.Name="Send deprecated files to the Recycle Bin"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- artists -->
+                <Border Style="{StaticResource CardBorderStyle}"
+                        Padding="0">
+                    <StackPanel>
+                        <Grid x:Name="ArtistsRow"
+                                Style="{StaticResource OptionRowStyle}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Spacing="2"
+                                    VerticalAlignment="Center">
+                                <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}"
+                                        Text="Standardize artist names"/>
+                                <TextBlock Style="{StaticResource OptionDescriptionStyle}"
+                                           Text="aespa, Aespa and 에스파 (aespa) become one official name."/>
+                                <TextBlock Style="{StaticResource OptionDescriptionStyle}"
+                                           Text="Chinese artists keep their Chinese name (G.E.M. 邓紫棋)."/>
+                                <TextBlock Style="{StaticResource OptionDescriptionStyle}"
+                                           Text="Works from the tags alone: no lyric files needed."/>
+                            </StackPanel>
+                            <ToggleSwitch x:Name="ArtistsSwitch"
+                                    Grid.Column="1"
+                                    Style="{StaticResource OptionSwitchStyle}"
+                                    VerticalAlignment="Top"
+                                          AutomationProperties.Name="Standardize artist names"
+                                    Toggled="OnSwitchToggled"/>
+                        </Grid>
+
+                        <Rectangle Style="{StaticResource OptionDividerStyle}"/>
+
+                        <Grid x:Name="ClaudeArtistsRow"
+                                Style="{StaticResource OptionRowStyle}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Spacing="2"
+                                    VerticalAlignment="Center">
+                                <TextBlock Style="{StaticResource OptionTitleStyle}"
+                                           Text="Use Claude to group the names (recommended)"/>
+                                <TextBlock Style="{StaticResource OptionDescriptionStyle}"
+                                           Text="Claude decides which spellings are the same artist; you can correct every name in the preview."/>
+                            </StackPanel>
+                            <ToggleSwitch x:Name="ClaudeArtistsSwitch"
+                                    Grid.Column="1"
+                                    Style="{StaticResource OptionSwitchStyle}"
+                                          AutomationProperties.Name="Use Claude to group the artist names"
+                                    Toggled="OnSwitchToggled"/>
+                        </Grid>
+
+                        <Rectangle Style="{StaticResource OptionDividerStyle}"/>
+
+                        <Grid x:Name="SeparatorRow"
+                                Style="{StaticResource OptionRowStyle}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Spacing="2"
+                                    VerticalAlignment="Center">
+                                <TextBlock Style="{StaticResource OptionTitleStyle}"
+                                        Text="Separator"/>
+                                <TextBlock Style="{StaticResource OptionDescriptionStyle}"
+                                           Text="What joins several artists in one tag."/>
+                            </StackPanel>
+                            <ComboBox x:Name="SeparatorBox"
+                                    Grid.Column="1"
+                                    MinWidth="240"
+                                    VerticalAlignment="Center"
+                                      AutomationProperties.Name="Separator"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Claude -->
+                <Expander x:Name="ClaudeExpander"
+                        IsExpanded="True"
+                        HorizontalAlignment="Stretch"
+                        AutomationProperties.Name="Claude"
+                          HorizontalContentAlignment="Stretch">
+                    <Expander.Header>
+                        <StackPanel Spacing="2"
+                                Padding="0,12">
+                            <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}"
+                                    Text="Claude"/>
+                            <TextBlock Style="{StaticResource OptionDescriptionStyle}"
+                                       Text="Used for romaji and for grouping the artist names."/>
+                        </StackPanel>
+                    </Expander.Header>
+                    <StackPanel Spacing="12">
+                        <PasswordBox x:Name="ApiKeyBox"
+                                Header="API key"
+                                PasswordRevealMode="Peek"/>
+                        <TextBlock x:Name="KeyHintText"
+                                Style="{StaticResource OptionDescriptionStyle}"/>
+                        <ComboBox x:Name="ModelBox"
+                                Header="Model"
+                                IsEditable="True"
+                                HorizontalAlignment="Stretch"/>
+                    </StackPanel>
+                </Expander>
+            </StackPanel>
+
+            <!-- the deprecated Convert formats page -->
+            <StackPanel x:Name="ConvertPanel"
+                    Spacing="8"
+                    Visibility="Collapsed">
+                <Border Style="{StaticResource CardBorderStyle}">
+                    <StackPanel Spacing="8">
+                        <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}"
+                                Text="Convert formats"/>
+                        <StackPanel x:Name="FormatsPanel"/>
+                        <TextBlock Style="{StaticResource OptionDescriptionStyle}"
+                                   Text="Writes the chosen formats next to each song you process. Nothing is deleted: the files that are there stay as they are."/>
+                    </StackPanel>
+                </Border>
+                <InfoBar x:Name="FormatError"
+                        Severity="Error"
+                        IsOpen="False"
+                        IsClosable="False"
+                         Title="No formats selected"
+                        Message="Select at least one format to convert to."/>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</ContentDialog>
+

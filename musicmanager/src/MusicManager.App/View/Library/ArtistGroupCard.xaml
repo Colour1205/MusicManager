@@ -1,0 +1,40 @@
+<UserControl
+    x:Class="MusicManager.App.View.Library.ArtistGroupCard"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    HorizontalContentAlignment="Stretch">
+
+    <!--
+      One artist group of the review: the standardized name in an editable ComboBox (pick one of the spellings or type the
+      name you want), how many songs it covers (a link that opens the list of them), the spellings it replaces, and a
+      "please check" line when Claude suggested the name or is not sure.
+    -->
+    <Border Style="{StaticResource CardBorderStyle}" Padding="16,12">
+        <StackPanel Spacing="8">
+            <Grid ColumnSpacing="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <ComboBox x:Name="NameBox" IsEditable="True" HorizontalAlignment="Stretch"
+                          AutomationProperties.Name="Standardized artist name"
+                          ToolTipService.ToolTip="Pick one of the spellings, or type the name you want. Press Enter to apply it to every song."
+                          SelectionChanged="OnNameSelectionChanged" TextSubmitted="OnNameSubmitted"
+                          LostFocus="OnNameLostFocus" />
+                <!-- "N songs": a link that opens the list of those songs -->
+                <HyperlinkButton x:Name="SongCountButton" Grid.Column="1" Padding="6,2" FontSize="12"
+                                 VerticalAlignment="Center" Click="OnSongCountClick"
+                                 AutomationProperties.Name="Show the songs of this artist" />
+            </Grid>
+            <TextBlock x:Name="SpellingsText" Style="{StaticResource CaptionTextBlockStyle}" TextWrapping="Wrap"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            <StackPanel x:Name="WarningRow" Orientation="Horizontal" Spacing="8" Visibility="Collapsed">
+                <!-- the presenter's summary says "check the names marked in red" -->
+                <FontIcon Glyph="&#xE7BA;" FontSize="14" VerticalAlignment="Center"
+                          Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
+                <TextBlock x:Name="WarningText" Style="{StaticResource CaptionTextBlockStyle}" TextWrapping="Wrap"
+                           VerticalAlignment="Center" Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</UserControl>

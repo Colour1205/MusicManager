@@ -1,0 +1,21 @@
+<ContentDialog
+    x:Class="MusicManager.App.View.ConvertLRC.SongConvertDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    PrimaryButtonText="Convert"
+    CloseButtonText="Cancel"
+    DefaultButton="Primary"
+    PrimaryButtonClick="OnConvertClick">
+
+    <!-- DEPRECATED (the old stand-alone Convert LRC feature): convert a single song, with formats for this song only -->
+    <StackPanel Spacing="12">
+        <TextBlock Style="{StaticResource BodyTextBlockStyle}" TextWrapping="Wrap"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                   Text="Pick the target formats for this song only. The general Settings stay as they are." />
+        <Border Style="{StaticResource CardBorderStyle}">
+            <StackPanel x:Name="FormatsPanel" Spacing="4" />
+        </Border>
+        <InfoBar x:Name="FormatError" Severity="Warning" IsOpen="False" IsClosable="False"
+                 Title="No formats selected" Message="Select at least one target format." />
+    </StackPanel>
+</ContentDialog>

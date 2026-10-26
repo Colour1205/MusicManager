@@ -1,0 +1,51 @@
+<Page
+    x:Class="MusicManager.App.View.ConvertLRC.SongListView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+      DEPRECATED (the old stand-alone Convert LRC feature): the songs found in the chosen folder as a grid of cards. Each
+      song can be converted on its own (press its card) or all at once (Start); Settings picks the general target formats.
+    -->
+    <Grid Padding="{StaticResource PagePadding}">
+        <Grid MaxWidth="{StaticResource PageContentMaxWidth}" HorizontalAlignment="Stretch" RowSpacing="12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0" Spacing="8">
+                <InfoBar IsOpen="True" IsClosable="False" Severity="Warning" Title="Deprecated"
+                         Message="Convert LRC is the old converter. Standardize writes one word-synced .lrc per song and removes the .ttml and .hmrc files." />
+                <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="Songs" />
+                <TextBlock x:Name="HeaderText" Style="{StaticResource BodyTextBlockStyle}" TextWrapping="Wrap"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <ItemsRepeater x:Name="SongsRepeater" Margin="0,0,12,0">
+                    <ItemsRepeater.Layout>
+                        <UniformGridLayout MinItemWidth="320" MinRowSpacing="12" MinColumnSpacing="12" ItemsStretch="Fill" />
+                    </ItemsRepeater.Layout>
+                </ItemsRepeater>
+            </ScrollViewer>
+
+            <Grid Grid.Row="2">
+                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Left">
+                    <Button x:Name="BackButton" AutomationProperties.Name="Back" Click="OnBackClick">
+                        <FontIcon Glyph="&#xE72B;" FontSize="14" />
+                    </Button>
+                    <Button x:Name="SettingsButton" Click="OnSettingsClick">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE713;" FontSize="14" />
+                            <TextBlock Text="Settings" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+                <Button x:Name="StartButton" HorizontalAlignment="Right" Style="{StaticResource AccentButtonStyle}"
+                        Content="Start" Click="OnStartClick" />
+            </Grid>
+        </Grid>
+    </Grid>
+</Page>

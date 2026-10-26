@@ -1,0 +1,56 @@
+<UserControl
+    x:Class="MusicManager.App.View.ConvertLRC.SongCard"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    HorizontalContentAlignment="Stretch">
+
+    <!--
+      DEPRECATED (the old stand-alone Convert LRC feature): one song of the list, as a card-like button: cover art (or a
+      note glyph), title, artist and the status of the last conversion. Pressing it offers the conversion of this song.
+    -->
+    <Grid>
+        <Button x:Name="CardButton" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="12"
+                CornerRadius="{ThemeResource OverlayCornerRadius}" Click="OnCardClick">
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Border x:Name="Thumbnail" Width="48" Height="48" CornerRadius="{ThemeResource ControlCornerRadius}"
+                        Background="{ThemeResource ControlFillColorSecondaryBrush}">
+                    <Grid>
+                        <FontIcon x:Name="NoteIcon" Glyph="&#xE8D6;" FontSize="20"
+                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <Image x:Name="CoverImage" Stretch="UniformToFill" />
+                    </Grid>
+                </Border>
+
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                    <TextBlock x:Name="TitleText" Style="{StaticResource BodyStrongTextBlockStyle}"
+                               TextTrimming="CharacterEllipsis" />
+                    <TextBlock x:Name="ArtistText" Style="{StaticResource CaptionTextBlockStyle}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock x:Name="StatusText" Style="{StaticResource CaptionTextBlockStyle}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text=" " />
+                </StackPanel>
+            </Grid>
+        </Button>
+
+            <VisualStateManager.VisualStateGroups>
+                <VisualStateGroup x:Name="ResultStates">
+                    <VisualState x:Name="Idle" />
+                    <VisualState x:Name="Converted">
+                        <VisualState.Setters>
+                            <Setter Target="StatusText.Foreground" Value="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Failed">
+                        <VisualState.Setters>
+                            <Setter Target="StatusText.Foreground" Value="{ThemeResource SystemFillColorCriticalBrush}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateManager.VisualStateGroups>
+    </Grid>
+</UserControl>

@@ -1,0 +1,26 @@
+﻿<Window
+    x:Class="MusicManager.App.MusicManagerFrame"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Window.SystemBackdrop>
+        <MicaBackdrop />
+    </Window.SystemBackdrop>
+
+    <!-- title bar (with the back button) above the page Frame; the pages are transparent so that Mica shows through -->
+    <Grid x:Name="RootGrid">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TitleBar
+            x:Name="AppTitleBar"
+            Grid.Row="0"
+            Title="Music Manager"
+            IsBackButtonVisible="False"
+            BackRequested="AppTitleBar_BackRequested" />
+
+        <Frame x:Name="PageFrame" Grid.Row="1" CacheSize="3" />
+    </Grid>
+</Window>

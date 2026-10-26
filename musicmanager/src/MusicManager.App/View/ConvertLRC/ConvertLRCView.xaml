@@ -1,0 +1,38 @@
+<Page
+    x:Class="MusicManager.App.View.ConvertLRC.ConvertLRCView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+      DEPRECATED (the old stand-alone Convert LRC feature): the home screen, pick a music folder, then move on to the
+      song list. The path is prefilled from the persisted settings and remembered whenever a valid folder is confirmed.
+    -->
+    <Grid Padding="{StaticResource PagePadding}">
+        <StackPanel MaxWidth="640" HorizontalAlignment="Stretch" VerticalAlignment="Center" Spacing="16">
+            <InfoBar IsOpen="True" IsClosable="False" Severity="Warning" Title="Deprecated"
+                     Message="Convert LRC is the old converter. Standardize writes one word-synced .lrc per song and removes the .ttml and .hmrc files." />
+
+            <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="Music Manager" />
+
+            <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="PathBox" Header="Music folder" PlaceholderText="Choose the folder that holds your music"
+                         AcceptsReturn="False" />
+                <Button x:Name="BrowseButton" Grid.Column="1" VerticalAlignment="Bottom" Click="OnBrowseClick">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE8B7;" FontSize="14" />
+                        <TextBlock Text="Browse" />
+                    </StackPanel>
+                </Button>
+            </Grid>
+
+            <InfoBar x:Name="MessageBar" IsOpen="False" IsClosable="True" Severity="Warning" />
+
+            <Button x:Name="ConvertButton" HorizontalAlignment="Right" Style="{StaticResource AccentButtonStyle}"
+                    Content="Convert LRC" Click="OnConvertClick" />
+        </StackPanel>
+    </Grid>
+</Page>

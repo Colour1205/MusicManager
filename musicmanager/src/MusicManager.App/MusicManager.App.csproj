@@ -1,0 +1,65 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>MusicManager.App</RootNamespace>
+    <AssemblyName>MusicManager</AssemblyName>
+    <UseWinUI>true</UseWinUI>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <Platforms>x64</Platforms>
+    <Platform Condition="'$(Platform)' == ''">x64</Platform>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- the UI resources are found by the exe's name; resources.pri is the name Windows falls back to, so the exe may be renamed (e.g. "Music Manager.exe") -->
+    <ProjectPriFileName>resources.pri</ProjectPriFileName>
+    <ApplicationIcon>Assets\musicmanager-icon.ico</ApplicationIcon>
+    <!-- the version info of the exe, as the Java build gives it (launch4j) -->
+    <AssemblyTitle>Music Manager</AssemblyTitle>
+    <Product>Music Manager</Product>
+    <Copyright>Music Manager</Copyright>
+    <Version>1.0.0.0</Version>
+    <!--
+      The parsers allocate a lot and a library is read by many threads at once: the default collector stops every thread at
+      each collection (a check of 1,700 songs took 2.5 s), the server one collects on several heaps and does not (1.5 s). Four
+      heaps keep its memory in check (the measured peak was no higher than with the default one).
+    -->
+    <ServerGarbageCollector>true</ServerGarbageCollector>
+  </PropertyGroup>
+  <ItemGroup>
+    <RuntimeHostConfigurationOption Include="System.GC.Server" Value="true" />
+    <RuntimeHostConfigurationOption Include="System.GC.HeapCount" Value="4" />
+  </ItemGroup>
+  <!-- dotnet publish -c Release makes ONE self-contained exe (about 68 MB): no .NET and no Windows App SDK install needed -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+  </PropertyGroup>
+
+  <!-- the smaller set of Windows App SDK packages instead of the umbrella package (the single-file exe is about 60 MB smaller) -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK.Base" Version="2.0.4" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Foundation" Version="2.3.12" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.InteractiveExperiences" Version="2.1.9" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.WinUI" Version="2.3.9" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Runtime" Version="2.5.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- the window icon (the exe icon is ApplicationIcon): the same one the Java build gives its exe -->
+    <Content Include="Assets\musicmanager-icon.ico" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MusicManager.View\MusicManager.View.csproj" />
+    <ProjectReference Include="..\MusicManager.InterfaceAdapter\MusicManager.InterfaceAdapter.csproj" />
+    <ProjectReference Include="..\MusicManager.UseCase\MusicManager.UseCase.csproj" />
+    <ProjectReference Include="..\MusicManager.Entity\MusicManager.Entity.csproj" />
+    <ProjectReference Include="..\MusicManager.DataAccess\MusicManager.DataAccess.csproj" />
+    <ProjectReference Include="..\MusicManager.Common\MusicManager.Common.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,24 @@
+<!--
+  The few styles and sizes that more than one page shares. Built ONLY from ThemeResources and the stock Fluent
+  resources (no colours of our own): they follow the system light/dark theme and the Windows 11 look.
+
+    CardBorderStyle    a Border with the card brushes, a 1 px card stroke, the overlay corner radius and 16 px padding
+                       (song cards, option groups, artist groups, "settings card" rows)
+    PageContentMaxWidth the width a page's content column stops growing at on wide windows (~1040)
+    PagePadding        the margin around a page's content (36 left and right, 24 top, 36 bottom)
+-->
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <x:Double x:Key="PageContentMaxWidth">1040</x:Double>
+    <Thickness x:Key="PagePadding">36,24,36,36</Thickness>
+
+    <Style x:Key="CardBorderStyle" TargetType="Border">
+        <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+        <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{ThemeResource OverlayCornerRadius}" />
+        <Setter Property="Padding" Value="16" />
+    </Style>
+</ResourceDictionary>

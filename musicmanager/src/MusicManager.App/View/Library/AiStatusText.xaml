@@ -1,0 +1,48 @@
+<UserControl
+    x:Class="MusicManager.App.View.Library.AiStatusText"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!--
+    The status line of a step that takes a moment (Claude, checking, analyzing): a small spinning sparkle star and a word that
+    changes (Identifying..., Classifying..., Analyzing..., Thinking...), filled with a blue-violet-pink gradient that flows.
+    It is only a supporting caption: the real content is shown as redacted blocks (SkeletonLines) or as a progress bar.
+  -->
+  <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" AutomationProperties.Name="Working">
+
+    <!-- the star -->
+    <Grid Width="22" Height="22" VerticalAlignment="Center">
+      <Path x:Name="BigStar" Width="16" Height="16" Stretch="Fill" HorizontalAlignment="Center" VerticalAlignment="Center"
+            RenderTransformOrigin="0.5,0.5"
+            Data="M12,0 C12.8,6.8 17.2,11.2 24,12 C17.2,12.8 12.8,17.2 12,24 C11.2,17.2 6.8,12.8 0,12 C6.8,11.2 11.2,6.8 12,0 Z">
+        <Path.Fill>
+          <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#4F8DFF" Offset="0"/>
+            <GradientStop Color="#FF6BC8" Offset="1"/>
+          </LinearGradientBrush>
+        </Path.Fill>
+        <Path.RenderTransform>
+          <CompositeTransform/>
+        </Path.RenderTransform>
+      </Path>
+      <Path x:Name="SmallStar" Width="7" Height="7" Stretch="Fill" HorizontalAlignment="Right" VerticalAlignment="Top"
+            RenderTransformOrigin="0.5,0.5" Fill="#B79CFF"
+            Data="M12,0 C12.8,6.8 17.2,11.2 24,12 C17.2,12.8 12.8,17.2 12,24 C11.2,17.2 6.8,12.8 0,12 C6.8,11.2 11.2,6.8 12,0 Z">
+        <Path.RenderTransform>
+          <CompositeTransform/>
+        </Path.RenderTransform>
+      </Path>
+    </Grid>
+
+    <!-- the word: gradient text at 45 degrees; the next word simply replaces it (a hard cut) -->
+    <TextBlock x:Name="WordBase" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold" CharacterSpacing="6" Text="Identifying…">
+      <TextBlock.Foreground>
+        <LinearGradientBrush MappingMode="Absolute" StartPoint="0,0" EndPoint="60,60">
+          <GradientStop Color="#4F8DFF" Offset="0"/>
+          <GradientStop Color="#9B6BFF" Offset="0.5"/>
+          <GradientStop Color="#FF6BC8" Offset="1"/>
+        </LinearGradientBrush>
+      </TextBlock.Foreground>
+    </TextBlock>
+  </StackPanel>
+</UserControl>

@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <RootNamespace>MusicManager.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\MusicManager.Common\MusicManager.Common.csproj" />
+    <ProjectReference Include="..\..\src\MusicManager.Entity\MusicManager.Entity.csproj" />
+    <ProjectReference Include="..\..\src\MusicManager.UseCase\MusicManager.UseCase.csproj" />
+    <ProjectReference Include="..\..\src\MusicManager.InterfaceAdapter\MusicManager.InterfaceAdapter.csproj" />
+    <ProjectReference Include="..\..\src\MusicManager.DataAccess\MusicManager.DataAccess.csproj" />
+    <ProjectReference Include="..\..\src\MusicManager.View\MusicManager.View.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

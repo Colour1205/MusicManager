@@ -1,0 +1,16 @@
+namespace MusicManager.UseCase.StandardizeArtists;
+
+public interface IStandardizeArtistsInputBoundary
+{
+    /// <summary>reads the library's artist tags and builds a plan (nothing is written)</summary>
+    void Analyze(StandardizeArtistsAnalyzeInputData inputData);
+
+    /// <summary>recomputes (and presents) what would change after the user edited a name in the plan; writes nothing</summary>
+    void Review(StandardizeArtistsApplyInputData inputData);
+
+    /// <summary>writes the (possibly user-edited) plan to the audio files' tags</summary>
+    void Apply(StandardizeArtistsApplyInputData inputData);
+
+    /// <summary>whether an API key can be found without the user typing one</summary>
+    bool IsApiKeyAvailable { get; }
+}

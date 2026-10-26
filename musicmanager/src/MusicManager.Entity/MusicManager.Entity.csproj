@@ -1,0 +1,10 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>MusicManager.Entity</RootNamespace>
+    <AssemblyName>MusicManager.Entity</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\MusicManager.Common\MusicManager.Common.csproj" />
+  </ItemGroup>
+</Project>

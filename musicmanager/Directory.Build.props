@@ -1,0 +1,11 @@
+﻿<Project>
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <!-- the Java code returns and passes null freely; nullable annotations would only add noise to a faithful port -->
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <NoWarn>$(NoWarn);CS1591;CS0618;CS8632</NoWarn>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+</Project>

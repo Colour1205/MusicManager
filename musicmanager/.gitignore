@@ -1,2 +1,11 @@
+﻿# the full list is in the .gitignore at the root of the repository; these are the ones that matter most in this folder
+# .NET build output
+bin/
+obj/
+publish/
+# editor state
+.vs/
+*.user
+# the old Java build
 target/
 dependency-reduced-pom.xml

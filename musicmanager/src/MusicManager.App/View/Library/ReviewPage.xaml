@@ -1,0 +1,136 @@
+<Page
+    x:Class="MusicManager.App.View.Library.ReviewPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:MusicManager.App.View.Library">
+
+    <!--
+      The review page: what a preview of Process found, as cards the user can read (and, for artist names, correct)
+      before anything is written. Only the layout is here; ReviewPage.xaml.cs fills it and decides what happens.
+      The page is transparent so that Mica shows through. The summary of the shown section is the header of its list,
+      so it scrolls away with the cards and a long detail text never squeezes the list.
+    -->
+    <Page.Resources>
+        <!-- a card list: the cards only show information, so no selection; the card is the item -->
+        <Style x:Key="CardListItemStyle" TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0,0,0,8" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="IsTabStop" Value="False" />
+            <Setter Property="CornerRadius" Value="{ThemeResource OverlayCornerRadius}" />
+        </Style>
+        <Style x:Key="SummaryHeadlineStyle" TargetType="TextBlock" BasedOn="{StaticResource SubtitleTextBlockStyle}">
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <Style x:Key="SummaryDetailStyle" TargetType="TextBlock" BasedOn="{StaticResource BodyTextBlockStyle}">
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+        </Style>
+
+        <DataTemplate x:Key="ResultCardTemplate">
+            <local:ResultCard />
+        </DataTemplate>
+        <DataTemplate x:Key="ArtistCardTemplate">
+            <local:ArtistGroupCard />
+        </DataTemplate>
+    </Page.Resources>
+
+    <Grid Padding="{StaticResource PagePadding}">
+        <Grid MaxWidth="{StaticResource PageContentMaxWidth}" HorizontalAlignment="Stretch" RowSpacing="12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- the title, how many songs -->
+            <StackPanel Grid.Row="0" Spacing="4">
+                <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="Preview" />
+                <TextBlock x:Name="CaptionText" Style="{StaticResource SummaryDetailStyle}" />
+            </StackPanel>
+
+            <!-- the sections (only the ones the options turned on; a single section needs no switch) -->
+            <SelectorBar x:Name="SectionBar" Grid.Row="1" Visibility="Collapsed" SelectionChanged="OnSectionChanged">
+                <SelectorBarItem x:Name="LyricsItem" Text="Lyrics" />
+                <SelectorBarItem x:Name="ArtistsItem" Text="Artists" />
+                <SelectorBarItem x:Name="ChangesItem" Text="Tag changes" />
+            </SelectorBar>
+
+            <!-- the lists of the sections (the code shows one at a time) -->
+            <Grid Grid.Row="2">
+                <ListView x:Name="LyricsList" SelectionMode="None" ItemContainerStyle="{StaticResource CardListItemStyle}"
+                          ItemTemplate="{StaticResource ResultCardTemplate}" Padding="0,0,12,0">
+                    <ListView.Header>
+                        <StackPanel Spacing="8" Margin="0,4,0,12">
+                            <TextBlock x:Name="LyricsHeadline" Style="{StaticResource SummaryHeadlineStyle}" />
+                            <TextBlock x:Name="LyricsDetail" Style="{StaticResource SummaryDetailStyle}" />
+                            <!-- what romaji does, in the words of the Options window; the old Chinese-character romaji IS replaced -->
+                            <InfoBar x:Name="RomajiNote" IsOpen="True" IsClosable="False" Severity="Informational"
+                                     Title="Romaji" Visibility="Collapsed" />
+                            <!-- while the preview works this out and there are no rows yet: redacted blocks where they will be -->
+                            <local:SkeletonLines x:Name="LyricsSkeleton" Height="200" Visibility="Collapsed" />
+                        </StackPanel>
+                    </ListView.Header>
+                </ListView>
+
+                <ListView x:Name="ArtistList" SelectionMode="None" Visibility="Collapsed"
+                          ItemContainerStyle="{StaticResource CardListItemStyle}"
+                          ItemTemplate="{StaticResource ArtistCardTemplate}" Padding="0,0,12,0">
+                    <ListView.Header>
+                        <StackPanel Spacing="8" Margin="0,4,0,12">
+                            <TextBlock x:Name="ArtistsHeadline" Style="{StaticResource SummaryHeadlineStyle}" />
+                            <TextBlock x:Name="ArtistsDetail" Style="{StaticResource SummaryDetailStyle}" />
+                            <!-- finds the artist to change: shows only the cards whose name or spelling matches -->
+                            <AutoSuggestBox x:Name="ArtistSearchBox" Visibility="Collapsed" MaxWidth="360"
+                                            HorizontalAlignment="Left" PlaceholderText="Search artists" QueryIcon="Find"
+                                            AutomationProperties.Name="Search artists"
+                                            TextChanged="OnArtistSearchChanged" KeyDown="OnArtistSearchKeyDown" />
+                            <TextBlock x:Name="ArtistSearchNote" Style="{StaticResource SummaryDetailStyle}"
+                                       Visibility="Collapsed" />
+                            <local:SkeletonLines x:Name="ArtistsSkeleton" Height="200" Visibility="Collapsed" />
+                        </StackPanel>
+                    </ListView.Header>
+                </ListView>
+
+                <ListView x:Name="ChangesList" SelectionMode="None" Visibility="Collapsed"
+                          ItemContainerStyle="{StaticResource CardListItemStyle}"
+                          ItemTemplate="{StaticResource ResultCardTemplate}" Padding="0,0,12,0">
+                    <ListView.Header>
+                        <StackPanel Spacing="8" Margin="0,4,0,12">
+                            <TextBlock x:Name="ChangesHeadline" Style="{StaticResource SummaryHeadlineStyle}" />
+                            <TextBlock x:Name="ChangesDetail" Style="{StaticResource SummaryDetailStyle}" />
+                            <local:SkeletonLines x:Name="ChangesSkeleton" Height="200" Visibility="Collapsed" />
+                        </StackPanel>
+                    </ListView.Header>
+                </ListView>
+            </Grid>
+
+            <!--
+              The status of the run. While a run is busy this plain panel (no title, no message) shows: for the preview, the
+              animated status text above its progress bar; for the writing of the changes, only the progress bar. When the run
+              ends the InfoBar says the usual result or error.
+            -->
+            <StackPanel x:Name="BusyPanel" Grid.Row="3" Spacing="8" Visibility="Collapsed">
+                <local:AiStatusText x:Name="BusyText" HorizontalAlignment="Left" Visibility="Collapsed" />
+                <ProgressBar x:Name="RunProgress" IsIndeterminate="True" />
+            </StackPanel>
+            <InfoBar x:Name="StatusBar" Grid.Row="3" IsOpen="True" IsClosable="False" Severity="Informational"
+                     Visibility="Collapsed" />
+
+            <!-- Back (nothing written) and Apply (artists first and lyrics second) -->
+            <Grid Grid.Row="4">
+                <Button x:Name="BackButton" HorizontalAlignment="Left" AutomationProperties.Name="Back" Click="OnBackClick">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE72B;" FontSize="14" />
+                        <TextBlock Text="Back" />
+                    </StackPanel>
+                </Button>
+                <Button x:Name="ApplyButton" HorizontalAlignment="Right" Style="{StaticResource AccentButtonStyle}"
+                        Content="Apply" IsEnabled="False" Click="OnApplyClick" />
+            </Grid>
+        </Grid>
+    </Grid>
+</Page>
