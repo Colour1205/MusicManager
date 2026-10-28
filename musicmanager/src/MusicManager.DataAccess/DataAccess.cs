@@ -5,7 +5,9 @@ using MusicManager.Common;
 using MusicManager.Entity;
 using MusicManager.UseCase.AppSettings;
 using MusicManager.UseCase.ConvertLRC;
+using MusicManager.UseCase.AddSongs;
 using MusicManager.UseCase.OpenLibrary;
+using MusicManager.UseCase.StandardizeAlbums;
 using MusicManager.UseCase.StandardizeArtists;
 using MusicManager.UseCase.StandardizeLyrics;
 
@@ -29,7 +31,7 @@ namespace MusicManager.DataAccess;
 ///   <see cref="ClaudeArtistParser"/>), remembering the answers in <see cref="ArtistParseCache"/>.
 /// </summary>
 public class DataAccess : IConvertLRCDataAccess, IAppSettingsDataAccess, IOpenLibraryDataAccess,
-        IStandardizeLyricsDataAccess, IStandardizeArtistsDataAccess
+        IStandardizeLyricsDataAccess, IStandardizeArtistsDataAccess, IStandardizeAlbumsDataAccess, IAddSongsDataAccess
 {
     // String.getBytes(UTF_8) and PrintWriter write an unpaired surrogate as '?', .NET's default would write U+FFFD
     private static readonly Encoding Utf8Writer = Encoding.GetEncoding("utf-8", new EncoderReplacementFallback("?"),
@@ -37,7 +39,13 @@ public class DataAccess : IConvertLRCDataAccess, IAppSettingsDataAccess, IOpenLi
 
     private readonly RomajiCache _romajiCache = RomajiCache.AtDefaultLocation();
     private readonly ArtistParseCache _artistParseCache;
+    private readonly AlbumParseCache _albumParseCache;
     private readonly SettingsStore _settingsStore;
+    private readonly string _pendingFolder; // where the songs of an add wait for the user's decision
+
+    /// <summary>the add that waits for the user's decision (see <see cref="PendingAdd"/>), or null</summary>
+    private volatile PendingAdd _pending;
+    private volatile bool _committing; // the pending add is being moved into the library
 
     /// <summary>stores everything under ~/.musicmanager</summary>
     public DataAccess() : this(SettingsStore.AtDefaultLocation(), ArtistParseCache.AtDefaultLocation())
@@ -46,9 +54,40 @@ public class DataAccess : IConvertLRCDataAccess, IAppSettingsDataAccess, IOpenLi
 
     /// <summary>for tests: settings and the artist cache in places of their own</summary>
     public DataAccess(SettingsStore settingsStore, ArtistParseCache artistParseCache)
+        : this(settingsStore, artistParseCache, AlbumParseCache.AtDefaultLocation())
+    {
+    }
+
+    /// <summary>for tests: settings and both caches in places of their own</summary>
+    public DataAccess(SettingsStore settingsStore, ArtistParseCache artistParseCache, AlbumParseCache albumParseCache)
+        : this(settingsStore, artistParseCache, albumParseCache, DefaultPendingFolder())
+    {
+    }
+
+    /// <summary>for tests: the folder the songs of an add wait in is a place of its own too</summary>
+    public DataAccess(SettingsStore settingsStore, ArtistParseCache artistParseCache, AlbumParseCache albumParseCache,
+            string pendingFolder)
     {
         _settingsStore = settingsStore;
         _artistParseCache = artistParseCache;
+        _albumParseCache = albumParseCache;
+        _pendingFolder = pendingFolder;
+    }
+
+    /// <summary>~/.musicmanager/pending: a folder for each add the user has not decided on yet</summary>
+    public static string DefaultPendingFolder()
+    {
+        return Path.Combine(UserHome.Path, ".musicmanager", "pending");
+    }
+
+    /// <summary>
+    /// Throws away what adds left in the pending folder when the app was closed (or failed) before the user decided: the
+    /// library never had those songs, and the originals are where they were picked from. Call it when the app starts.
+    /// </summary>
+    public void DiscardUndecidedAdds()
+    {
+        _pending = null;
+        PendingAdd.DiscardAllIn(_pendingFolder);
     }
 
     public static readonly string[] AudioExtensions = { ".mp3", ".flac", ".wav", ".m4a", ".ogg", ".aac" };
@@ -147,12 +186,21 @@ public class DataAccess : IConvertLRCDataAccess, IAppSettingsDataAccess, IOpenLi
 
     public virtual List<SongLyricFiles> FindSongs(string path)
     {
-        return LyricFiles.FindSongs(path);
+        List<SongLyricFiles> songs = LyricFiles.FindSongs(path);
+        PendingAdd pending = _pending;
+        return pending != null && pending.IsFor(path) ? pending.MergeLyricFiles(songs) : songs;
     }
 
     public virtual Lyric ReadLyric(string lyricFilePath)
     {
-        return LyricFiles.ReadLyric(lyricFilePath);
+        return LyricFiles.ReadLyric(Resolve(lyricFilePath));
+    }
+
+    /// <summary>the file to read for a path: while an add waits for the user's decision, a song that is not in the library yet is read from where it waits</summary>
+    private string Resolve(string path)
+    {
+        PendingAdd pending = _pending;
+        return pending == null ? path : pending.Resolve(path);
     }
 
     public virtual Lyric ParseLrcText(string lrcText)
@@ -162,7 +210,7 @@ public class DataAccess : IConvertLRCDataAccess, IAppSettingsDataAccess, IOpenLi
 
     public virtual Music ReadMusicTags(string audioPath)
     {
-        return ReadMusic(JavaPath(audioPath));
+        return ReadMusic(JavaPath(Resolve(audioPath)));
     }
 
     public virtual void WriteLyricFile(string path, string content)
@@ -174,7 +222,7 @@ public class DataAccess : IConvertLRCDataAccess, IAppSettingsDataAccess, IOpenLi
     {
         try
         {
-            return StandardLrcFormatter.IsStandardWordSynced(LyricFiles.DecodeText(File.ReadAllBytes(lrcPath)));
+            return StandardLrcFormatter.IsStandardWordSynced(LyricFiles.DecodeText(File.ReadAllBytes(Resolve(lrcPath))));
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
@@ -191,7 +239,9 @@ public class DataAccess : IConvertLRCDataAccess, IAppSettingsDataAccess, IOpenLi
 
     public virtual List<SongArtistTags> ReadArtistTags(string path)
     {
-        return ArtistTags.Read(path);
+        List<SongArtistTags> songs = ArtistTags.Read(path);
+        PendingAdd pending = _pending;
+        return pending != null && pending.IsFor(path) ? pending.MergeArtistTags(songs) : songs;
     }
 
     public virtual IDictionary<string, List<ParsedArtist>> ParseArtistsWithAi(IDictionary<string, int> rawCounts,
@@ -214,6 +264,94 @@ public class DataAccess : IConvertLRCDataAccess, IAppSettingsDataAccess, IOpenLi
     public virtual SongRenameResult RenameSongFiles(string audioPath, string separator)
     {
         return SongRenamer.Rename(audioPath, separator);
+    }
+
+    // ---- IStandardizeAlbumsDataAccess (delegates to AlbumTags, AlbumFolders and the Claude client) ----
+
+    public virtual List<SongAlbumTags> ReadAlbumTags(string path)
+    {
+        List<SongAlbumTags> songs = AlbumTags.Read(path);
+        PendingAdd pending = _pending;
+        return pending != null && pending.IsFor(path) ? pending.MergeAlbumTags(songs) : songs;
+    }
+
+    public virtual IDictionary<string, ParsedAlbum> ParseAlbumsWithAi(IDictionary<string, AlbumRaw> raws, string apiKey,
+            string model, List<string> notes, Action<string> status)
+    {
+        return ClaudeAlbumParser.Parse(new AnthropicClient(), raws, apiKey, model, notes, status, _albumParseCache);
+    }
+
+    public virtual bool WriteAlbumTag(SongAlbumUpdate update)
+    {
+        return AlbumTags.Write(update);
+    }
+
+    public virtual AlbumFolderMoveResult MoveToAlbumFolder(AlbumFolderMove move)
+    {
+        return AlbumFolders.Move(move);
+    }
+
+    // ---- IAddSongsDataAccess (delegates to LibraryImporter and PendingAdd) ----
+
+    public virtual AddSongsOutputData AddSongs(string libraryPath, IReadOnlyList<string> sources, string preferredFormat,
+            Action<int, int> progress)
+    {
+        DiscardAdded(); // an add the user never decided on is not wanted any more
+        var pending = new PendingAdd(libraryPath, Path.Combine(_pendingFolder, Guid.NewGuid().ToString("N")));
+        AddSongsOutputData result;
+        try
+        {
+            result = LibraryImporter.Add(pending, sources, preferredFormat, progress);
+        }
+        catch (Exception)
+        {
+            pending.Discard();
+            throw;
+        }
+        if (pending.HasFiles())
+        {
+            _pending = pending;
+        }
+        else
+        {
+            pending.Discard(); // nothing to wait for (everything was in the library already, or could not be added)
+        }
+        return result;
+    }
+
+    public virtual AddCommitOutputData CommitAdded()
+    {
+        PendingAdd pending = _pending;
+        if (pending == null)
+        {
+            return new AddCommitOutputData(0, null);
+        }
+        PendingAdd.CommitResult result;
+        _committing = true;
+        try
+        {
+            result = pending.Commit();
+        }
+        finally
+        {
+            _committing = false;
+        }
+        if (result.Problem == null)
+        {
+            _pending = null;
+        }
+        return new AddCommitOutputData(result.Songs, result.Problem);
+    }
+
+    public virtual void DiscardAdded()
+    {
+        if (_committing)
+        {
+            return; // the songs are being moved into the library: they are not dropped half-way
+        }
+        PendingAdd pending = _pending;
+        _pending = null;
+        pending?.Discard();
     }
 
     // ---- romaji (part of IStandardizeLyricsDataAccess; delegates to ClaudeRomanizer and its disk cache) ----

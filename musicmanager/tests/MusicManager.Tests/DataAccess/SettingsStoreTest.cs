@@ -65,6 +65,9 @@ public class SettingsStoreTest : IDisposable
         Assert.Equal(expected.IsRecycleBin, actual.IsRecycleBin);
         Assert.Equal(expected.IsArtists, actual.IsArtists);
         Assert.Equal(expected.IsUseClaudeForArtists, actual.IsUseClaudeForArtists);
+        Assert.Equal(expected.IsAlbums, actual.IsAlbums);
+        Assert.Equal(expected.IsUseClaudeForAlbums, actual.IsUseClaudeForAlbums);
+        Assert.Equal(expected.PreferredFormat, actual.PreferredFormat);
         Assert.Equal(expected.Separator, actual.Separator);
         Assert.Equal(expected.Model, actual.Model);
     }
@@ -78,6 +81,9 @@ public class SettingsStoreTest : IDisposable
         options.IsRecycleBin = true;
         options.IsArtists = false;
         options.IsUseClaudeForArtists = false;
+        options.IsAlbums = false;
+        options.IsUseClaudeForAlbums = false;
+        options.PreferredFormat = "wav";
         options.Separator = " / ";
         options.Model = "claude-opus-5-5";
         options.ApiKey = "sk-ant-api03-SECRET-KEY-abcdefghijklmnop";
@@ -145,12 +151,25 @@ public class SettingsStoreTest : IDisposable
         Assert.Equal("lrc", root.GetProperty("defaultTargetFormats")[0].GetString());
         JsonElement options = root.GetProperty("standardizeOptions");
         foreach (string key in new[] { "mode", "lyrics", "romaji", "recycleBin", "artists", "useClaudeForArtists",
-                "separator", "model" })
+                "albums", "useClaudeForAlbums", "preferredFormat", "separator", "model" })
         {
             Assert.True(options.TryGetProperty(key, out _), "missing " + key);
         }
         Assert.Equal("CONVERT", options.GetProperty("mode").GetString());
         Assert.False(options.TryGetProperty("apiKey", out _));
+    }
+
+    [Fact]
+    public void AnOldFileWithoutTheAlbumOptionsGetsThemOn()
+    {
+        Write("{\"lastPath\": \"x\", \"standardizeOptions\": {\"lyrics\": false, \"artists\": true}}");
+
+        StandardizeOptions options = Store().Load().StandardizeOptions;
+
+        Assert.False(options.IsLyrics);
+        Assert.True(options.IsAlbums);
+        Assert.True(options.IsUseClaudeForAlbums);
+        Assert.Equal("flac", options.PreferredFormat);
     }
 
     [Fact]

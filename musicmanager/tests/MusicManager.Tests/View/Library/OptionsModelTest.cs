@@ -119,7 +119,10 @@ public class OptionsModelTest
         values.Romaji = false; // artists still use Claude
         Assert.True(values.Enabled().ClaudeSettings);
 
-        values.UseClaudeForArtists = false;
+        values.UseClaudeForArtists = false; // so do the albums
+        Assert.True(values.Enabled().ClaudeSettings);
+
+        values.UseClaudeForAlbums = false;
         Assert.False(values.Enabled().ClaudeSettings);
 
         values.Romaji = true; // romaji does
@@ -180,5 +183,59 @@ public class OptionsModelTest
         Assert.Equal("HMRC (deprecated)", OptionsModel.FormatLabel("HMRC"));
         Assert.Equal("LRC (line-synced)", OptionsModel.FormatLabel("LRC"));
         Assert.Equal("XYZ", OptionsModel.FormatLabel("XYZ"));
+    }
+
+    // ---- Add: the format to prefer
+
+    [Fact]
+    public void TheDropDownOffersEveryFormatFlacFirst()
+    {
+        Assert.Equal(new[] { "FLAC", "WAV", "MP3", "M4A", "OGG", "AAC" }, OptionsModel.PreferredFormats.Select(c => c.ToString()).ToArray());
+        Assert.Equal(new[] { "flac", "wav", "mp3", "m4a", "ogg", "aac" }, OptionsModel.PreferredFormats.Select(c => c.Extension).ToArray());
+    }
+
+    [Fact]
+    public void ASavedFormatSelectsItsEntryAndAnUnknownOneIsFlac()
+    {
+        Assert.Same(OptionsModel.PreferredFormats[1], OptionsModel.FormatChoiceFor("wav"));
+        Assert.Same(OptionsModel.PreferredFormats[2], OptionsModel.FormatChoiceFor(".MP3"));
+        Assert.Same(OptionsModel.PreferredFormats[0], OptionsModel.FormatChoiceFor("opus"));
+        Assert.Same(OptionsModel.PreferredFormats[0], OptionsModel.FormatChoiceFor(null));
+    }
+
+    [Fact]
+    public void ThePreferredFormatTravelsThroughTheControls()
+    {
+        StandardizeOptions options = new StandardizeOptions();
+        options.PreferredFormat = "wav";
+
+        OptionsModel.Values values = OptionsModel.Values.From(options);
+        Assert.Equal("wav", values.PreferredFormat);
+
+        values.PreferredFormat = "MP3";
+        Assert.Equal("mp3", values.ApplyTo(options).PreferredFormat);
+
+        values.PreferredFormat = null; // nothing selected in the box
+        Assert.Equal("flac", values.ApplyTo(options).PreferredFormat);
+    }
+
+    [Fact]
+    public void TheAlbumControlsTravelThroughTheValuesToo()
+    {
+        StandardizeOptions options = new StandardizeOptions();
+        options.IsAlbums = false;
+        options.IsUseClaudeForAlbums = false;
+
+        OptionsModel.Values values = OptionsModel.Values.From(options);
+        Assert.False(values.Albums);
+        Assert.False(values.UseClaudeForAlbums);
+        Assert.False(values.Enabled().UseClaudeForAlbums); // greyed out while albums are off
+
+        values.Albums = true;
+        values.UseClaudeForAlbums = true;
+        StandardizeOptions applied = values.ApplyTo(options);
+        Assert.True(applied.IsAlbums);
+        Assert.True(applied.IsUseClaudeForAlbums);
+        Assert.True(values.Enabled().UseClaudeForAlbums);
     }
 }

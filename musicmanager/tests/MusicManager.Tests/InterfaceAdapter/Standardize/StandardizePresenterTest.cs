@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using MusicManager.Common;
 using MusicManager.Entity;
 using MusicManager.InterfaceAdapter.Standardize;
+using MusicManager.UseCase.StandardizeAlbums;
 using MusicManager.UseCase.StandardizeArtists;
 using MusicManager.UseCase.StandardizeLyrics;
 using Xunit;
@@ -371,5 +372,126 @@ public class StandardizePresenterTest
         _presenter.PresentAnalysis(new StandardizeArtistsAnalysisOutputData(plan, new List<SongArtistUpdate>(), renames));
 
         Assert.Equal(2, _viewModel.State.ArtistRenameCount);
+    }
+
+    // ---- albums ----
+
+    private const string AlbumRoot = @"C:\lib";
+
+    private static SongAlbumTags AlbumSong(string folder, string file, string album)
+    {
+        return new SongAlbumTags(Path.Combine(AlbumRoot, folder, file), album, new List<string> { "IU" }, new List<string>(), file);
+    }
+
+    private static AlbumPlan AlbumPlanOf(bool usedAi, IEnumerable<string> scope, params SongAlbumTags[] songs)
+    {
+        var parsed = new Dictionary<string, ParsedAlbum>();
+        foreach (SongAlbumTags song in songs)
+        {
+            parsed[AlbumStandardizer.RawOf(song, AlbumRoot)] = new ParsedAlbum(AlbumStandardizer.CleanLocally(song.Album), false);
+        }
+        return AlbumStandardizer.BuildPlan(songs, parsed, usedAi, AlbumRoot, scope);
+    }
+
+    private void PresentAlbums(AlbumPlan plan)
+    {
+        _presenter.PresentAlbumsAnalysis(new StandardizeAlbumsAnalysisOutputData(plan, AlbumStandardizer.ComputeUpdates(plan),
+                AlbumStandardizer.ComputeFolderMoves(plan)));
+    }
+
+    [Fact]
+    public void TheAlbumAnalysisIsInTheStateWithItsSummary()
+    {
+        AlbumPlan plan = AlbumPlanOf(true, null,
+                AlbumSong("Palette [FLAC]", "1.flac", "Palette [FLAC]"), AlbumSong("Palette [FLAC]", "2.flac", "Palette [FLAC]"),
+                AlbumSong("Lilac", "1.flac", "Lilac"));
+
+        PresentAlbums(plan);
+
+        StandardizeState state = _viewModel.State;
+        Assert.Equal(new[] { "albumsAnalysis" }, _events.ToArray());
+        Assert.Same(plan, state.AlbumPlan);
+        Assert.Equal(2, state.AlbumUpdates.Count);
+        Assert.Single(state.AlbumFolderMoves);
+        string[] lines = Lines(state.AlbumsSummary);
+        Assert.Equal("2 albums found, 2 of 3 songs will change", lines[0]);
+        Assert.Equal("Grouped by AI. Check the albums marked in red.", lines[1]);
+        Assert.Equal("2 songs move to the folder named after their albums", lines[2]);
+    }
+
+    [Fact]
+    public void TheAlbumSummaryOfSomeSelectedSongsIsAboutThemOnly()
+    {
+        SongAlbumTags first = AlbumSong("Palette [FLAC]", "1.flac", "Palette [FLAC]");
+        AlbumPlan plan = AlbumPlanOf(false, new[] { first.Path }, first, AlbumSong("Palette [FLAC]", "2.flac", "Other"));
+
+        PresentAlbums(plan);
+
+        string[] lines = Lines(_viewModel.State.AlbumsSummary);
+        Assert.Equal("2 albums found in the folder, 1 of 1 selected song will change", lines[0]);
+        Assert.Equal("Grouped without AI, so review every name carefully.", lines[1]);
+        Assert.Equal("1 song moves to the folder named after its album", lines[2]);
+    }
+
+    [Fact]
+    public void AnAlbumLibraryThatIsInOrderSaysNothingMoves()
+    {
+        PresentAlbums(AlbumPlanOf(true, null, AlbumSong("Palette", "1.flac", "Palette")));
+
+        string[] lines = Lines(_viewModel.State.AlbumsSummary);
+        Assert.Equal("1 album found, 0 of 1 song will change", lines[0]);
+        Assert.Equal(2, lines.Length);
+    }
+
+    [Fact]
+    public void TheWrittenAlbumTagsAreCounted()
+    {
+        _presenter.PresentAlbumsApplied(new StandardizeAlbumsApplyOutputData(3, 5, new List<string>()));
+
+        Assert.Equal("Updated 3 album tags, 5 were already right", _viewModel.State.AlbumsAppliedSummary);
+        Assert.Equal(new[] { "albumsApplied" }, _events.ToArray());
+
+        _presenter.PresentAlbumsApplied(new StandardizeAlbumsApplyOutputData(1, 0, new List<string> { "x", "y" }));
+
+        Assert.Equal("Updated 1 album tag, 0 were already right, 2 could not be written", _viewModel.State.AlbumsAppliedSummary);
+    }
+
+    [Fact]
+    public void TheMovedSongsAreCountedAndWhatStayedIsListed()
+    {
+        var skipped = new List<AlbumFolderMoveResult.Skipped>();
+        for (int i = 1; i <= 7; i++)
+        {
+            skipped.Add(new AlbumFolderMoveResult.Skipped(@"C:\lib\Heat\a" + i + ".flac", "taken " + i));
+        }
+        var moved = new Dictionary<string, string> { { @"C:\lib\old\a.flac", @"C:\lib\new\a.flac" } };
+
+        _presenter.PresentAlbumsMoved(new StandardizeAlbumsMoveOutputData(2, 9, skipped, moved));
+
+        string[] lines = Lines(_viewModel.State.AlbumsMovedSummary);
+        Assert.Equal("Moved 9 songs into the folders named after their albums (2 folders were renamed), 7 songs were left in their folders:", lines[0]);
+        Assert.Equal("a1.flac: taken 1", lines[1]);
+        Assert.Equal("a5.flac: taken 5", lines[5]);
+        Assert.Equal("... and 2 more", lines[6]);
+        Assert.Same(moved, _viewModel.State.AlbumMovedPaths);
+        Assert.Equal(new[] { "albumsMoved" }, _events.ToArray());
+    }
+
+    [Fact]
+    public void OneMovedSongAndNoRenamedFolderIsSaidSimply()
+    {
+        _presenter.PresentAlbumsMoved(new StandardizeAlbumsMoveOutputData(0, 1, new List<AlbumFolderMoveResult.Skipped>(),
+                new Dictionary<string, string>()));
+
+        Assert.Equal("Moved 1 song into the folders named after their albums", _viewModel.State.AlbumsMovedSummary);
+    }
+
+    [Fact]
+    public void NothingMovedAndNothingSkippedSaysNothing()
+    {
+        _presenter.PresentAlbumsMoved(new StandardizeAlbumsMoveOutputData(0, 0, new List<AlbumFolderMoveResult.Skipped>(),
+                new Dictionary<string, string>()));
+
+        Assert.Equal("", _viewModel.State.AlbumsMovedSummary);
     }
 }

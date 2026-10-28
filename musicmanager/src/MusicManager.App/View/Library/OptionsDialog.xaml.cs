@@ -108,6 +108,10 @@ public sealed partial class OptionsDialog : ContentDialog
             RecycleSwitch.IsOn = values.RecycleBin;
             ArtistsSwitch.IsOn = values.Artists;
             ClaudeArtistsSwitch.IsOn = values.UseClaudeForArtists;
+            AlbumsSwitch.IsOn = values.Albums;
+            ClaudeAlbumsSwitch.IsOn = values.UseClaudeForAlbums;
+            PreferBox.ItemsSource = OptionsModel.PreferredFormats;
+            PreferBox.SelectedItem = OptionsModel.FormatChoiceFor(values.PreferredFormat);
 
             OptionsModel.SeparatorChoice choice = OptionsModel.ChoiceFor(values.Separator);
             if (!_separatorChoices.Contains(choice))
@@ -172,7 +176,10 @@ public sealed partial class OptionsDialog : ContentDialog
         values.RecycleBin = RecycleSwitch.IsOn;
         values.Artists = ArtistsSwitch.IsOn;
         values.UseClaudeForArtists = ClaudeArtistsSwitch.IsOn;
-        values.Separator = SeparatorBox.SelectedItem is OptionsModel.SeparatorChoice separator
+        values.Albums = AlbumsSwitch.IsOn;
+        values.UseClaudeForAlbums = ClaudeAlbumsSwitch.IsOn;
+        values.PreferredFormat = PreferBox.SelectedItem is OptionsModel.FormatChoice format ? format.Extension : null;
+        values.Separator =SeparatorBox.SelectedItem is OptionsModel.SeparatorChoice separator
                 ? separator.Value() : StandardizeOptions.DefaultSeparator;
         values.Model = ModelText();
         values.ApiKey = ApiKeyBox.Password;
@@ -216,6 +223,7 @@ public sealed partial class OptionsDialog : ContentDialog
         SetEnabled(RomajiRow, RomajiSwitch, enabled.Romaji);
         SetEnabled(RecycleRow, RecycleSwitch, enabled.RecycleBin);
         SetEnabled(ClaudeArtistsRow, ClaudeArtistsSwitch, enabled.UseClaudeForArtists);
+        SetEnabled(ClaudeAlbumsRow, ClaudeAlbumsSwitch, enabled.UseClaudeForAlbums);
         SetEnabled(SeparatorRow, SeparatorBox, enabled.Separator);
         ApiKeyBox.IsEnabled = enabled.ClaudeSettings;
         ModelBox.IsEnabled = enabled.ClaudeSettings;

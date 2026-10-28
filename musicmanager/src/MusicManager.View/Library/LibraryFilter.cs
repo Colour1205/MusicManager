@@ -300,6 +300,10 @@ public static class LibraryFilter
         {
             parts.Append(parts.Length == 0 ? "artists" : ", artists");
         }
+        if (options.IsAlbums)
+        {
+            parts.Append(parts.Length == 0 ? "albums" : ", albums");
+        }
         return parts.Length == 0 ? "Standardize: nothing selected in Options" : "Standardize: " + parts;
     }
 }

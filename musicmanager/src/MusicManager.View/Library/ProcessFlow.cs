@@ -57,12 +57,68 @@ public sealed class ProcessFlow
     }
 
     /// <summary>
+    /// The songs of an Add that wait for the user's decision. They are not in the library: they are staged, and the review
+    /// shows them as they will be once they are in it. The review that was given them puts them into the library when the
+    /// user applies it (<see cref="Commit"/> first, before anything is written) and throws them away when the user goes back
+    /// (<see cref="Discard"/>), so that the library never has songs that were not standardized.
+    /// </summary>
+    public sealed class StagedSongs
+    {
+        private readonly ISet<string> _newPaths;
+        private readonly ISet<string> _lyricsOnlyPaths;
+        private readonly Func<(string Problem, int Songs)> _commit;
+        private readonly Action _discard;
+
+        public StagedSongs(IEnumerable<string> newPaths, IEnumerable<string> lyricsOnlyPaths,
+                Func<(string Problem, int Songs)> commit, Action discard)
+        {
+            _newPaths = new HashSet<string>(newPaths, StringComparer.OrdinalIgnoreCase);
+            _lyricsOnlyPaths = new HashSet<string>(lyricsOnlyPaths ?? new string[0], StringComparer.OrdinalIgnoreCase);
+            _commit = commit;
+            _discard = discard;
+        }
+
+        /// <summary>the staged songs, by the path they will have in the library</summary>
+        public ISet<string> NewPaths => _newPaths;
+
+        /// <summary>
+        /// songs of the library that are given the lyric files of a copy that was left out: only their lyrics are standardized,
+        /// the tags and the folder of a song that was in the library before are left as they are
+        /// </summary>
+        public ISet<string> LyricsOnlyPaths => _lyricsOnlyPaths;
+
+        /// <summary>how many songs the last <see cref="Commit"/> put into the library</summary>
+        public int CommittedSongs { get; private set; }
+
+        /// <summary>
+        /// Puts the songs into the library, all or none; null when that worked, otherwise why it did not (the library is as
+        /// it was and the songs are still staged). Blocks, so call it off the UI thread.
+        /// </summary>
+        public string Commit()
+        {
+            (string problem, int songs) = _commit();
+            if (problem == null)
+            {
+                CommittedSongs = songs;
+            }
+            return problem;
+        }
+
+        /// <summary>throws the staged songs away: the library has not changed</summary>
+        public void Discard()
+        {
+            _discard();
+        }
+    }
+
+    /// <summary>
     /// Makes the review page for a run: the host, the process controller and view model, the folder, the audio paths of the
-    /// run, the options as they were when Process was pressed, the prompts, and what to call when the page is left.
+    /// run, the options as they were when Process was pressed, the prompts, what to call when the page is left, and, for
+    /// the songs of an Add, the songs that are still to be put into the library (otherwise null).
     /// </summary>
     public delegate IReviewPage ReviewPageFactory(IHost host, StandardizeController controller,
             StandardizeViewModel viewModel, string folder, ISet<string> scope, StandardizeOptions options,
-            IProcessPrompts prompts, Action onClosed);
+            IProcessPrompts prompts, Action onClosed, StagedSongs staged);
 
     private readonly AppContext _context;
     private readonly IHost _host;
@@ -121,45 +177,81 @@ public sealed class ProcessFlow
     /// </summary>
     public void Start(string folder, IReadOnlyCollection<Music> songs, AppSettings settings)
     {
-        _dispatcher(() => StartOnUiThread(folder, songs, settings));
+        _dispatcher(() => StartOnUiThread(folder, songs, null, null, settings));
     }
 
-    private void StartOnUiThread(string folder, IReadOnlyCollection<Music> songs, AppSettings settings)
+    /// <summary>
+    /// Starts the run for the songs an Add has just staged (paths as they are or will be in the library; the new ones are the
+    /// staged songs). The review previews what the library will look like with them, and the songs go into the library only
+    /// when the user applies it; when no review can be opened (nothing to do, no key) or the user goes back, they are
+    /// thrown away.
+    /// </summary>
+    public void StartAdded(string folder, IReadOnlyCollection<string> paths, IReadOnlyCollection<string> newPaths,
+            AppSettings settings)
     {
-        if (songs == null || songs.Count == 0)
+        StartAdded(folder, paths, newPaths, null, settings);
+    }
+
+    /// <param name="lyricsOnlyPaths">
+    /// songs of the library that only get lyric files staged for them: they are part of the run for their lyrics, not for
+    /// their tags and folders (see <see cref="StagedSongs.LyricsOnlyPaths"/>)
+    /// </param>
+    public void StartAdded(string folder, IReadOnlyCollection<string> paths, IReadOnlyCollection<string> newPaths,
+            IReadOnlyCollection<string> lyricsOnlyPaths, AppSettings settings)
+    {
+        bool anythingStaged = (newPaths != null && newPaths.Count != 0) || (lyricsOnlyPaths != null && lyricsOnlyPaths.Count != 0);
+        StagedSongs staged = !anythingStaged ? null : new StagedSongs(newPaths ?? new string[0], lyricsOnlyPaths, () =>
         {
+            _context.AddSongsController.Commit(); // (the presenter has stored the result when this returns)
+            var state = _context.AddSongsViewModel.State;
+            return (state.CommitProblem, state.CommittedSongs);
+        }, () => _context.AddSongsController.Discard());
+        _dispatcher(() => StartOnUiThread(folder, null, paths, staged, settings));
+    }
+
+    private void StartOnUiThread(string folder, IReadOnlyCollection<Music> songs, IReadOnlyCollection<string> paths,
+            StagedSongs staged, AppSettings settings)
+    {
+        int count = songs != null ? songs.Count : paths == null ? 0 : paths.Count;
+        if (count == 0)
+        {
+            staged?.Discard();
             _prompts.Info(_host.Frame(), "Process", "There are no songs to process.");
             return;
         }
         if ((_review != null && !_review.IsClosed) || _convertRunning || _starting)
         {
+            staged?.Discard();
             return; // a run is already going, or its review is open
         }
 
-        var chosen = new List<Music>(songs); // the caller's list may change while the run is starting
         StandardizeOptions options = settings.StandardizeOptions.Copy(); // what is in the window now, whatever happens later
-        if (_legacyConvert && options.GetMode() == StandardizeOptions.Mode.Convert)
+        if (staged == null && songs != null && _legacyConvert && options.GetMode() == StandardizeOptions.Mode.Convert)
         {
-            StartConvert(chosen, settings);
+            StartConvert(new List<Music>(songs), settings); // (the caller's list may change while the run is starting)
         }
         else
         {
-            StartStandardize(folder, chosen, options);
+            List<string> scope = songs != null ? songs.Select(song => song.Path).ToList() : new List<string>(paths);
+            StartStandardize(folder, scope, options, staged);
         }
     }
 
     // ------------------------------------------------------------------ Standardize
 
-    private void StartStandardize(string folder, List<Music> songs, StandardizeOptions options)
+    private void StartStandardize(string folder, List<string> songs, StandardizeOptions options, StagedSongs staged)
     {
-        if (!options.IsLyrics && !options.IsArtists)
+        if (!options.IsLyrics && !options.IsArtists && !options.IsAlbums)
         {
-            _prompts.Info(_host.Frame(), "Nothing to do", "Nothing to do: turn on lyrics or artists in Options.");
+            staged?.Discard();
+            _prompts.Info(_host.Frame(), "Nothing to do", staged == null
+                    ? "Nothing to do: turn on lyrics, artists or albums in Options."
+                    : "Nothing was added to the library. Turn on lyrics, artists or albums in Options, then add the songs again.");
             return;
         }
         if (!ReviewText.NeedsKeyLookup(options))
         {
-            OpenReview(folder, songs, options, true);
+            OpenReview(folder, songs, options, true, staged);
             return;
         }
         // Claude is needed and no key was typed: looking for one in the Windows environment can start a process or two,
@@ -172,29 +264,37 @@ public sealed class ProcessFlow
                 _starting = false;
                 // a lookup that failed counts as "not found": the message of OpenReview says what to do
                 bool available = task.Status == TaskStatus.RanToCompletion && task.Result;
-                OpenReview(folder, songs, options, available);
+                OpenReview(folder, songs, options, available, staged);
             });
         }, TaskScheduler.Default);
     }
 
     /// <summary>The review page for these songs, or, when Claude is needed and there is no key anywhere, the message saying so.</summary>
-    private void OpenReview(string folder, List<Music> songs, StandardizeOptions options, bool keyInEnvironment)
+    private void OpenReview(string folder, List<string> songs, StandardizeOptions options, bool keyInEnvironment,
+            StagedSongs staged)
     {
         // better to say so now than after the preview, or, worse, after the artist names were already rewritten
         string keyProblem = ReviewText.MissingKeyMessage(options, keyInEnvironment);
         if (keyProblem != null)
         {
-            _prompts.Warn(_host.Frame(), "Anthropic API key", keyProblem);
+            staged?.Discard();
+            _prompts.Warn(_host.Frame(), "Anthropic API key", staged == null
+                    ? keyProblem : keyProblem + "\n\nNothing was added to the library; add the songs again after that.");
             return;
         }
 
-        var scope = new HashSet<string>();
-        foreach (Music song in songs)
+        var scope = new HashSet<string>(songs);
+        IReviewPage page;
+        try
         {
-            scope.Add(song.Path);
+            page = _reviewPages(_host, _context.ProcessController, _context.ProcessViewModel, folder,
+                    new ReadOnlySet<string>(scope), options, _prompts, () => _review = null, staged);
         }
-        IReviewPage page = _reviewPages(_host, _context.ProcessController, _context.ProcessViewModel, folder,
-                new ReadOnlySet<string>(scope), options, _prompts, () => _review = null);
+        catch (Exception)
+        {
+            staged?.Discard();
+            throw;
+        }
         _review = page;
         _host.ShowReview(page);
         page.StartPreview();

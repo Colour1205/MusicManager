@@ -242,6 +242,85 @@
                     </StackPanel>
                 </Border>
 
+                <!-- albums -->
+                <Border Style="{StaticResource CardBorderStyle}"
+                        Padding="0">
+                    <StackPanel>
+                        <Grid x:Name="AlbumsRow"
+                                Style="{StaticResource OptionRowStyle}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Spacing="2"
+                                    VerticalAlignment="Center">
+                                <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}"
+                                        Text="Standardize albums"/>
+                                <TextBlock Style="{StaticResource OptionDescriptionStyle}"
+                                           Text="Palette [Hi-Res 24bit-96khz] and Palette become one album, with one name in every song's album tag."/>
+                                <TextBlock Style="{StaticResource OptionDescriptionStyle}"
+                                           Text="The songs are kept in a folder named after their album: a folder is renamed, and songs of the same album from different folders are merged into one."/>
+                                <TextBlock Style="{StaticResource OptionDescriptionStyle}"
+                                           Text="Albums are told apart by their name, not by who the album is by."/>
+                            </StackPanel>
+                            <ToggleSwitch x:Name="AlbumsSwitch"
+                                    Grid.Column="1"
+                                    Style="{StaticResource OptionSwitchStyle}"
+                                    VerticalAlignment="Top"
+                                          AutomationProperties.Name="Standardize albums"
+                                    Toggled="OnSwitchToggled"/>
+                        </Grid>
+
+                        <Rectangle Style="{StaticResource OptionDividerStyle}"/>
+
+                        <Grid x:Name="ClaudeAlbumsRow"
+                                Style="{StaticResource OptionRowStyle}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Spacing="2"
+                                    VerticalAlignment="Center">
+                                <TextBlock Style="{StaticResource OptionTitleStyle}"
+                                           Text="Use Claude to group the albums (recommended)"/>
+                                <TextBlock Style="{StaticResource OptionDescriptionStyle}"
+                                           Text="Claude decides which spellings are the same album and what it is officially called; you can correct every name in the preview."/>
+                            </StackPanel>
+                            <ToggleSwitch x:Name="ClaudeAlbumsSwitch"
+                                    Grid.Column="1"
+                                    Style="{StaticResource OptionSwitchStyle}"
+                                          AutomationProperties.Name="Use Claude to group the albums"
+                                    Toggled="OnSwitchToggled"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- adding songs -->
+                <Border Style="{StaticResource CardBorderStyle}"
+                        Padding="0">
+                    <Grid x:Name="PreferRow"
+                            Style="{StaticResource OptionRowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Spacing="2"
+                                VerticalAlignment="Center">
+                            <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}"
+                                    Text="Add: prefer"/>
+                            <TextBlock Style="{StaticResource OptionDescriptionStyle}"
+                                       Text="When a folder you add has the same song in several formats (Song.flac and Song.mp3), only one is added: the format you prefer."/>
+                            <TextBlock Style="{StaticResource OptionDescriptionStyle}"
+                                       Text="If none of them is in that format, the biggest file is added."/>
+                        </StackPanel>
+                        <ComboBox x:Name="PreferBox"
+                                Grid.Column="1"
+                                MinWidth="120"
+                                VerticalAlignment="Center"
+                                  AutomationProperties.Name="Prefer this format when adding songs"/>
+                    </Grid>
+                </Border>
+
                 <!-- Claude -->
                 <Expander x:Name="ClaudeExpander"
                         IsExpanded="True"
@@ -254,7 +333,7 @@
                             <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}"
                                     Text="Claude"/>
                             <TextBlock Style="{StaticResource OptionDescriptionStyle}"
-                                       Text="Used for romaji and for grouping the artist names."/>
+                                       Text="Used for romaji and for grouping the artist and album names."/>
                         </StackPanel>
                     </Expander.Header>
                     <StackPanel Spacing="12">

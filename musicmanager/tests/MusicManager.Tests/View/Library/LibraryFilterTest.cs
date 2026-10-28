@@ -264,6 +264,9 @@ public class LibraryFilterTest
     public void OptionsCaptionListsWhatIsOn()
     {
         StandardizeOptions options = new StandardizeOptions();
+        Assert.Equal("Standardize: lyrics, romaji, artists, albums", LibraryFilter.OptionsCaption(options, null, false));
+
+        options.IsAlbums = false;
         Assert.Equal("Standardize: lyrics, romaji, artists", LibraryFilter.OptionsCaption(options, null, false));
 
         options.IsRomaji = false;
@@ -278,6 +281,9 @@ public class LibraryFilterTest
 
         options.IsArtists = false;
         Assert.Equal("Standardize: nothing selected in Options", LibraryFilter.OptionsCaption(options, null, false));
+
+        options.IsAlbums = true;
+        Assert.Equal("Standardize: albums", LibraryFilter.OptionsCaption(options, null, false));
     }
 
     [Fact]
@@ -286,6 +292,7 @@ public class LibraryFilterTest
         StandardizeOptions options = new StandardizeOptions();
         options.IsLyrics = false;
         options.IsRomaji = true;
+        options.IsAlbums = false;
         Assert.Equal("Standardize: artists", LibraryFilter.OptionsCaption(options, null, false));
     }
 
@@ -294,7 +301,7 @@ public class LibraryFilterTest
     {
         StandardizeOptions options = new StandardizeOptions();
         options.SetMode(StandardizeOptions.Mode.Convert);
-        Assert.Equal("Standardize: lyrics, romaji, artists",
+        Assert.Equal("Standardize: lyrics, romaji, artists, albums",
                 LibraryFilter.OptionsCaption(options, new List<string> { "LRC" }, false));
         Assert.Equal("Convert formats: TTML, LRC", LibraryFilter.OptionsCaption(options, new List<string> { "TTML", "LRC" }, true));
         Assert.Equal("Convert formats: no format selected", LibraryFilter.OptionsCaption(options, new List<string>(), true));

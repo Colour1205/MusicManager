@@ -119,7 +119,7 @@ public class StandardizeArtistsInteractor : IStandardizeArtistsInputBoundary
         int done = 0;
         foreach (SongRename rename in renames)
         {
-            SongRenameResult result = _dataAccess.RenameSongFiles(rename.AudioPath, plan.Separator);
+            SongRenameResult result = _dataAccess.RenameSongFiles(inputData.CurrentPath(rename.AudioPath), plan.Separator);
             switch (result.Status)
             {
                 case SongRenameResult.Kind.Renamed:

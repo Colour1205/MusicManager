@@ -1,9 +1,12 @@
 ﻿using Microsoft.UI.Dispatching;
+using MusicManager.InterfaceAdapter.AddSongs;
 using MusicManager.InterfaceAdapter.ConvertLRC;
 using MusicManager.InterfaceAdapter.Library;
 using MusicManager.InterfaceAdapter.Standardize;
+using MusicManager.UseCase.AddSongs;
 using MusicManager.UseCase.ConvertLRC;
 using MusicManager.UseCase.OpenLibrary;
+using MusicManager.UseCase.StandardizeAlbums;
 using MusicManager.UseCase.StandardizeArtists;
 using MusicManager.UseCase.StandardizeLyrics;
 using AppContext = MusicManager.View.Library.AppContext; // System.AppContext would otherwise be ambiguous
@@ -59,9 +62,15 @@ public static class Main
         convertInteractor.ConvertLRC(dataAccess, new ConvertLRCPresenter(convertViewModal));
         ConvertLRCController convertController = new ConvertLRCController(convertInteractor);
 
+        // the Add button: stages picked songs (the library is not touched), the Process run previews and standardizes them,
+        // and they go into the library when the review is applied
+        AddSongsViewModel addSongsViewModel = new AddSongsViewModel();
+        AddSongsController addSongsController = new AddSongsController(
+                new AddSongsInteractor(dataAccess, new AddSongsPresenter(addSongsViewModel)));
+
         return new AppContext(dataAccess, libraryController, libraryViewModel, scan.Controller, scan.ViewModel,
                 process.Controller, process.ViewModel, convertController, convertViewModal,
-                () => NewStandardizePipeline(dataAccess));
+                () => NewStandardizePipeline(dataAccess), addSongsController, addSongsViewModel);
     }
 
     /// <summary>a Standardize controller over the one DataAccess, with a view model of its own for its presenter</summary>
@@ -72,7 +81,8 @@ public static class Main
         StandardizeController controller = new StandardizeController(
                 // the songs of a library are checked (and written) several at once, one worker for each core up to 16
                 new StandardizeLyricsInteractor(dataAccess, presenter, Math.Clamp(Environment.ProcessorCount, 2, 16)),
-                new StandardizeArtistsInteractor(dataAccess, presenter));
+                new StandardizeArtistsInteractor(dataAccess, presenter),
+                new StandardizeAlbumsInteractor(dataAccess, presenter));
         return new StandardizePipeline(controller, viewModel);
     }
 }

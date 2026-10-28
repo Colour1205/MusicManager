@@ -1,6 +1,7 @@
 using MusicManager.Common;
 using MusicManager.Entity;
 using MusicManager.UseCase.ConvertLRC;
+using AddSongsFormat = MusicManager.UseCase.AddSongs.PreferredFormat; // (OptionsModel.Values has a property of the same name)
 
 namespace MusicManager.View.Library;
 
@@ -33,6 +34,33 @@ public static class OptionsModel
         {
             return _label;
         }
+    }
+
+    /// <summary>One entry of the "Prefer" drop-down of Add: the format's name, and the extension that is saved.</summary>
+    public sealed class FormatChoice
+    {
+        public FormatChoice(string extension)
+        {
+            Extension = extension;
+        }
+
+        public string Extension { get; }
+
+        public override string ToString()
+        {
+            return Extension.ToUpperInvariant();
+        }
+    }
+
+    /// <summary>The formats Add can prefer, in the order of the drop-down.</summary>
+    public static readonly IReadOnlyList<FormatChoice> PreferredFormats =
+            AddSongsFormat.All.Select(extension => new FormatChoice(extension)).ToList().AsReadOnly();
+
+    /// <summary>The drop-down entry for a saved format (an unknown one is the default, FLAC).</summary>
+    public static FormatChoice FormatChoiceFor(string extension)
+    {
+        string wanted = AddSongsFormat.Normalize(extension);
+        return PreferredFormats.First(choice => choice.Extension == wanted);
     }
 
     public static readonly IReadOnlyList<SeparatorChoice> Separators = new List<SeparatorChoice>
@@ -86,6 +114,9 @@ public static class OptionsModel
         public bool RecycleBin { get; set; }
         public bool Artists { get; set; }
         public bool UseClaudeForArtists { get; set; }
+        public bool Albums { get; set; }
+        public bool UseClaudeForAlbums { get; set; }
+        public string PreferredFormat { get; set; }
         public string Separator { get; set; }
         public string Model { get; set; }
         public string ApiKey { get; set; }
@@ -98,6 +129,9 @@ public static class OptionsModel
             values.RecycleBin = options.IsRecycleBin;
             values.Artists = options.IsArtists;
             values.UseClaudeForArtists = options.IsUseClaudeForArtists;
+            values.Albums = options.IsAlbums;
+            values.UseClaudeForAlbums = options.IsUseClaudeForAlbums;
+            values.PreferredFormat = options.PreferredFormat;
             values.Separator = options.Separator;
             values.Model = options.Model;
             values.ApiKey = options.ApiKey;
@@ -113,7 +147,10 @@ public static class OptionsModel
             options.IsRecycleBin = RecycleBin;
             options.IsArtists = Artists;
             options.IsUseClaudeForArtists = UseClaudeForArtists;
-            options.Separator = string.IsNullOrEmpty(Separator) ? StandardizeOptions.DefaultSeparator : Separator;
+            options.IsAlbums = Albums;
+            options.IsUseClaudeForAlbums = UseClaudeForAlbums;
+            options.PreferredFormat = AddSongsFormat.Normalize(PreferredFormat);
+            options.Separator =string.IsNullOrEmpty(Separator) ? StandardizeOptions.DefaultSeparator : Separator;
             options.Model = Model == null || JavaString.IsBlank(Model) ? StandardizeOptions.DefaultModel : JavaString.Trim(Model);
             options.ApiKey = ApiKey == null ? "" : JavaString.Trim(ApiKey);
             return options;
@@ -122,8 +159,8 @@ public static class OptionsModel
         /// <summary>Which controls can be used, given the ticks: a control that has no effect is greyed out.</summary>
         public OptionsModel.Enabled Enabled()
         {
-            bool claude = (Lyrics && Romaji) || (Artists && UseClaudeForArtists);
-            return new OptionsModel.Enabled(Lyrics, Lyrics, Artists, Artists, claude);
+            bool claude = (Lyrics && Romaji) || (Artists && UseClaudeForArtists) || (Albums && UseClaudeForAlbums);
+            return new OptionsModel.Enabled(Lyrics, Lyrics, Artists, Artists, claude, Albums);
         }
     }
 
@@ -135,14 +172,22 @@ public static class OptionsModel
         public bool UseClaudeForArtists { get; }
         public bool Separator { get; }
         public bool ClaudeSettings { get; } // the API key and the model
+        public bool UseClaudeForAlbums { get; }
 
         public Enabled(bool romaji, bool recycleBin, bool useClaudeForArtists, bool separator, bool claudeSettings)
+            : this(romaji, recycleBin, useClaudeForArtists, separator, claudeSettings, false)
+        {
+        }
+
+        public Enabled(bool romaji, bool recycleBin, bool useClaudeForArtists, bool separator, bool claudeSettings,
+                bool useClaudeForAlbums)
         {
             Romaji = romaji;
             RecycleBin = recycleBin;
             UseClaudeForArtists = useClaudeForArtists;
             Separator = separator;
             ClaudeSettings = claudeSettings;
+            UseClaudeForAlbums = useClaudeForAlbums;
         }
     }
 

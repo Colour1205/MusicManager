@@ -338,7 +338,12 @@ public class AnthropicClient
         // the tool is offered, not forced: forcing it is a 400 on current models (and would stop the model searching)
         JsonObject toolChoice = new JsonObject();
         toolChoice["type"] = "auto";
-        toolChoice["disable_parallel_tool_use"] = true; // one call to the tool: a second one would be lost
+        if (options.MaxSearches == 0)
+        {
+            // one call to the tool: a second one would be lost. (With web search offered the API refuses the flag: the search
+            // tool of current models calls tools from code, which needs parallel calls; the prompt asks for one call.)
+            toolChoice["disable_parallel_tool_use"] = true;
+        }
 
         JsonArray messageList = new JsonArray();
         foreach (JsonObject message in messages)

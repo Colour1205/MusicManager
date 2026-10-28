@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Text;
 using MusicManager.Entity;
+using MusicManager.UseCase.StandardizeAlbums;
 using MusicManager.UseCase.StandardizeArtists;
 using MusicManager.UseCase.StandardizeLyrics;
 using MusicManager.View.Library;
@@ -154,6 +155,7 @@ public class ReviewTextTest
         StandardizeOptions off = new StandardizeOptions();
         off.IsRomaji = false;
         off.IsUseClaudeForArtists = false;
+        off.IsUseClaudeForAlbums = false;
         Assert.Null(ReviewText.MissingKeyMessage(off, false));
 
         Assert.Null(ReviewText.MissingKeyMessage(new StandardizeOptions(), true));
@@ -168,6 +170,7 @@ public class ReviewTextTest
     {
         StandardizeOptions options = new StandardizeOptions();
         options.IsUseClaudeForArtists = false;
+        options.IsUseClaudeForAlbums = false;
         string message = ReviewText.MissingKeyMessage(options, false);
         Assert.True(message.StartsWith("Romaji uses Claude", StringComparison.Ordinal), message);
         Assert.True(message.Contains("ANTHROPIC_API_KEY"), message);
@@ -178,21 +181,48 @@ public class ReviewTextTest
     {
         StandardizeOptions options = new StandardizeOptions();
         options.IsRomaji = false;
+        options.IsAlbums = false;
         Assert.StartsWith("Grouping the artist names uses Claude", ReviewText.MissingKeyMessage(options, false), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AlbumGroupingWithoutAKeyIsReported()
+    {
+        StandardizeOptions options = new StandardizeOptions();
+        options.IsLyrics = false;
+        options.IsArtists = false;
+        Assert.StartsWith("Grouping the album names uses Claude", ReviewText.MissingKeyMessage(options, false), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AllThreeUsesAreNamed()
+    {
+        string message = ReviewText.MissingKeyMessage(new StandardizeOptions(), false);
+        Assert.StartsWith("Romaji, grouping the artist names and grouping the album names all use Claude", message, StringComparison.Ordinal);
+        Assert.Contains("ANTHROPIC_API_KEY", message);
     }
 
     [Fact]
     public void BothUsesAreNamedAndRomajiOnlyCountsWhileLyricsAreOn()
     {
-        Assert.StartsWith("Romaji and grouping", ReviewText.MissingKeyMessage(new StandardizeOptions(), false), StringComparison.Ordinal);
+        StandardizeOptions both = new StandardizeOptions();
+        both.IsAlbums = false;
+        Assert.StartsWith("Romaji and grouping the artist names both use Claude", ReviewText.MissingKeyMessage(both, false), StringComparison.Ordinal);
 
         StandardizeOptions noLyrics = new StandardizeOptions();
         noLyrics.IsLyrics = false;
+        noLyrics.IsAlbums = false;
         Assert.StartsWith("Grouping the artist names", ReviewText.MissingKeyMessage(noLyrics, false), StringComparison.Ordinal);
+
+        StandardizeOptions artistsAndAlbums = new StandardizeOptions();
+        artistsAndAlbums.IsLyrics = false;
+        Assert.StartsWith("Grouping the artist names and grouping the album names both use Claude",
+                ReviewText.MissingKeyMessage(artistsAndAlbums, false), StringComparison.Ordinal);
 
         StandardizeOptions nothing = new StandardizeOptions();
         nothing.IsLyrics = false;
         nothing.IsArtists = false;
+        nothing.IsAlbums = false;
         Assert.Null(ReviewText.MissingKeyMessage(nothing, false));
     }
 
@@ -208,13 +238,20 @@ public class ReviewTextTest
         StandardizeOptions noClaude = new StandardizeOptions();
         noClaude.IsRomaji = false;
         noClaude.IsUseClaudeForArtists = false;
+        noClaude.IsUseClaudeForAlbums = false;
         Assert.False(ReviewText.NeedsKeyLookup(noClaude));
 
         StandardizeOptions artistsOnly = new StandardizeOptions();
         artistsOnly.IsLyrics = false;
+        artistsOnly.IsAlbums = false;
         Assert.True(ReviewText.NeedsKeyLookup(artistsOnly));
         artistsOnly.IsArtists = false;
         Assert.False(ReviewText.NeedsKeyLookup(artistsOnly));
+
+        StandardizeOptions albumsOnly = new StandardizeOptions();
+        albumsOnly.IsLyrics = false;
+        albumsOnly.IsArtists = false;
+        Assert.True(ReviewText.NeedsKeyLookup(albumsOnly));
     }
 
     // ---- the artist cards
@@ -374,5 +411,158 @@ public class ReviewTextTest
     {
         Assert.Equal("1 song's files will be renamed to \"Artist - Title\" after their tags", ReviewText.RenameNote(1));
         Assert.Equal("373 songs' files will be renamed to \"Artist - Title\" after their tags", ReviewText.RenameNote(373));
+    }
+
+    [Fact]
+    public void TheResultMessageHasPartsForTheAlbumsAndTheirFolders()
+    {
+        Assert.Equal("Artists: A\n\nAlbums: Updated 2 album tags\n\nFolders: Moved 2 songs\n\nFile names: Renamed\n\nLyrics: L",
+                ReviewText.ResultMessage("A", "L", "Renamed", "Updated 2 album tags", "Moved 2 songs"));
+        Assert.Equal("Albums: only this", ReviewText.ResultMessage("", "", "", "only this", null));
+        Assert.Equal("", ReviewText.ResultMessage("", "", "", "", ""));
+    }
+
+    [Fact]
+    public void ThePreviewSaysHowManySongsWillMoveToAnAlbumFolder()
+    {
+        Assert.Equal("1 song will be moved to the folder named after the album", ReviewText.FolderNote(1));
+        Assert.Equal("12 songs will be moved to the folder named after the album", ReviewText.FolderNote(12));
+    }
+
+    // ---- songs that are being added (not in the library until Apply)
+
+    [Fact]
+    public void TheCaptionOfAnAddSaysNothingIsInTheLibraryUntilApplyAndThatBackDropsTheSongs()
+    {
+        Assert.Equal("1 song to add: they are copied into your library only when you press Apply, and Back drops them", ReviewText.AddCaption(1));
+        Assert.StartsWith("30 songs to add:", ReviewText.AddCaption(30), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheCaptionWhenOnlyLyricsAreGivenToLibrarySongsSaysSo()
+    {
+        Assert.StartsWith("1 song gets the lyric files of the copy you added:", ReviewText.LyricsOnlyCaption(1), StringComparison.Ordinal);
+        Assert.StartsWith("3 songs get the lyric files of the copy you added:", ReviewText.LyricsOnlyCaption(3), StringComparison.Ordinal);
+        Assert.EndsWith("only when you press Apply, and Back drops them", ReviewText.LyricsOnlyCaption(3), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ThePreviewSaysHowManySongsAreAddedOnApply()
+    {
+        Assert.Equal("1 song is added to the library only when you press Apply", ReviewText.AddNote(1));
+        Assert.Equal("5 songs are added to the library only when you press Apply", ReviewText.AddNote(5));
+    }
+
+    [Fact]
+    public void ANewSongsCardSaysWhichFolderItArrivesIn()
+    {
+        Assert.Equal("ADD:  new song, into the folder \"New songs\"", ReviewText.AddLine(@"C:\lib\New songs\a.flac"));
+        Assert.Equal("ADD:  new song, into the folder \"Palette\"", ReviewText.AddLine(@"C:\lib\Palette\IU - Black Out.flac"));
+    }
+
+    [Fact]
+    public void ANewSongsCardLeavesTheFolderToTheTreeWhenThereIsOne()
+    {
+        // the folder of the path is where the Add copied the song to, not the album folder it is put in
+        Assert.Equal("ADD:  new song", ReviewText.AddLine(@"C:\lib\New songs\a.flac", false));
+        Assert.Equal("ADD:  new song, into the folder \"New songs\"", ReviewText.AddLine(@"C:\lib\New songs\a.flac", true));
+    }
+
+    [Fact]
+    public void TheTreeOfTheFoldersTellsHowManyFoldersChange()
+    {
+        var plan = AlbumStandardizer.BuildPlan(new List<SongAlbumTags>(), new Dictionary<string, ParsedAlbum>(), true, @"C:\lib", null);
+        FolderPreview none = FolderPreview.Build(plan, new List<AlbumFolderMove>(), null, null, _ => false);
+
+        Assert.Equal("No folders change", ReviewText.FoldersHeadline(none));
+        Assert.False(none.HasChanges);
+        Assert.StartsWith("Only the folders that change are shown", ReviewText.FoldersDetail(none));
+    }
+
+    [Fact]
+    public void TheResultOfAnApplyThatAddedSongsStartsWithThat()
+    {
+        Assert.Equal("Added 1 song to the library.", ReviewText.AddedSummary(1));
+        Assert.Equal("Added 12 songs to the library.", ReviewText.AddedSummary(12));
+        Assert.Equal("", ReviewText.AddedSummary(0));
+        Assert.Equal("Added 2 songs to the library.\n\nArtists: x", ReviewText.WithAdded(ReviewText.AddedSummary(2), "Artists: x"));
+        Assert.Equal("Added 2 songs to the library.", ReviewText.WithAdded(ReviewText.AddedSummary(2), ""));
+        Assert.Equal("Artists: x", ReviewText.WithAdded("", "Artists: x"));
+        Assert.Equal("", ReviewText.WithAdded(null, null));
+    }
+
+    // ---- the album cards
+
+    private const string AlbumRoot = @"C:\lib";
+
+    private static SongAlbumTags AlbumSong(string folder, string file, string album)
+    {
+        return new SongAlbumTags(Path.Combine(AlbumRoot, folder, file), album, new List<string> { "IU" }, new List<string>(), file);
+    }
+
+    private static AlbumPlan AlbumPlanOf(IEnumerable<string> scope, params (SongAlbumTags Song, string Name, bool Low)[] songs)
+    {
+        var parsed = new Dictionary<string, ParsedAlbum>();
+        foreach ((SongAlbumTags song, string name, bool low) in songs)
+        {
+            parsed[AlbumStandardizer.RawOf(song, AlbumRoot)] = new ParsedAlbum(name, low);
+        }
+        return AlbumStandardizer.BuildPlan(songs.Select(s => s.Song), parsed, true, AlbumRoot, scope);
+    }
+
+    [Fact]
+    public void TheAlbumCardsOfASelectionAreThoseOfTheAlbumsItsSongsBelongTo()
+    {
+        SongAlbumTags a = AlbumSong("A", "1.flac", "One");
+        SongAlbumTags b = AlbumSong("B", "1.flac", "Two");
+        AlbumPlan all = AlbumPlanOf(null, (a, "One", false), (b, "Two", false));
+        AlbumPlan some = AlbumPlanOf(new[] { a.Path }, (a, "One", false), (b, "Two", false));
+
+        Assert.Equal(2, ReviewText.AlbumGroupsInScope(all).Count);
+        Assert.Equal("One", Assert.Single(ReviewText.AlbumGroupsInScope(some)).CanonicalName);
+        Assert.Empty(ReviewText.AlbumGroupsInScope(AlbumPlanOf(new[] { "/not/in/the/folder.flac" }, (a, "One", false))));
+    }
+
+    [Fact]
+    public void TheAlbumsToCheckComeFirstAndKeepTheirOrder()
+    {
+        SongAlbumTags a = AlbumSong("A", "1.flac", "One");
+        SongAlbumTags b = AlbumSong("B", "1.flac", "Two [FLAC]"); // the names Claude was unsure of are changes of these
+        SongAlbumTags c = AlbumSong("C", "1.flac", "Three [FLAC]");
+        AlbumPlan plan = AlbumPlanOf(null, (a, "One", false), (b, "Two", true), (c, "Three", true));
+
+        List<AlbumGroup> ordered = ReviewText.CheckFirst(plan.Groups);
+
+        Assert.Equal(new[] { "Two", "Three", "One" }, ordered.Select(g => g.CanonicalName).ToArray());
+        Assert.True(ReviewText.NeedsCheck(ordered[0]));
+        Assert.False(ReviewText.NeedsCheck(ordered[2]));
+    }
+
+    [Fact]
+    public void TheAlbumSearchMatchesTheNameOrAnySpellingIgnoringCaseAndPunctuation()
+    {
+        SongAlbumTags a = AlbumSong("A", "1.flac", "Love Poem [24bit Hi-Res]");
+        AlbumGroup group = AlbumPlanOf(null, (a, "Love poem", false)).Groups[0];
+
+        Assert.True(ReviewText.MatchesSearch(group, ""));
+        Assert.True(ReviewText.MatchesSearch(group, null));
+        Assert.True(ReviewText.MatchesSearch(group, "LOVE"));
+        Assert.True(ReviewText.MatchesSearch(group, "lovepoem"));
+        Assert.True(ReviewText.MatchesSearch(group, "24bit"));
+        Assert.False(ReviewText.MatchesSearch(group, "palette"));
+    }
+
+    [Fact]
+    public void AnAlbumCardListsItsSongsWithTheAlbumTagTheyCarry()
+    {
+        SongAlbumTags a = AlbumSong("Palette [FLAC]", "IU - Jam Jam.flac", "Palette [FLAC]");
+        SongAlbumTags b = AlbumSong("Palette", "IU - Black Out.flac", null);
+        SongAlbumTags other = AlbumSong("Lilac", "IU - Lilac.flac", "Lilac");
+        AlbumPlan plan = AlbumPlanOf(null, (a, "Palette", false), (b, "Palette", false), (other, "Lilac", false));
+
+        List<ReviewText.AlbumSong> songs = ReviewText.SongsOf(plan, plan.Groups.Single(g => g.CanonicalName == "Palette"));
+
+        Assert.Equal(new[] { "Palette [FLAC] / IU - Jam Jam", "Palette / IU - Black Out" }, songs.Select(s => s.Name).ToArray());
+        Assert.Equal(new[] { "Palette [FLAC]", "(no album tag)" }, songs.Select(s => s.AlbumTag).ToArray());
     }
 }

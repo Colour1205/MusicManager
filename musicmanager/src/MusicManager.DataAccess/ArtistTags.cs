@@ -13,21 +13,8 @@ public static class ArtistTags
     /// <summary>the artist-related tags of every audio file under root, in path order; files without a readable tag are skipped</summary>
     public static List<SongArtistTags> Read(string root)
     {
-        // java.io.File spells a path with the platform separator and without a trailing one
-        root = Path.TrimEndingDirectorySeparator(root.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar));
-        List<string> audioFiles = new List<string>();
-        foreach (string file in Walk(root))
-        {
-            if (DataAccess.IsAudioFileName(Path.GetFileName(file)))
-            {
-                audioFiles.Add(file);
-            }
-        }
-        // a stable sort, as Java's: files that are equal ignoring case stay in the order they were found
-        audioFiles = audioFiles.OrderBy(f => f.ToLowerInvariant(), StringComparer.Ordinal).ToList();
-
         List<SongArtistTags> songs = new List<SongArtistTags>();
-        foreach (string file in audioFiles)
+        foreach (string file in AudioFiles(root))
         {
             try
             {
@@ -46,6 +33,23 @@ public static class ArtistTags
             }
         }
         return songs;
+    }
+
+    /// <summary>every audio file under root (or root itself, if that is one), in path order</summary>
+    internal static List<string> AudioFiles(string root)
+    {
+        // java.io.File spells a path with the platform separator and without a trailing one
+        root = Path.TrimEndingDirectorySeparator(root.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar));
+        List<string> audioFiles = new List<string>();
+        foreach (string file in Walk(root))
+        {
+            if (DataAccess.IsAudioFileName(Path.GetFileName(file)))
+            {
+                audioFiles.Add(file);
+            }
+        }
+        // a stable sort, as Java's: files that are equal ignoring case stay in the order they were found
+        return audioFiles.OrderBy(f => f.ToLowerInvariant(), StringComparer.Ordinal).ToList();
     }
 
     /// <summary>
@@ -83,7 +87,7 @@ public static class ArtistTags
     }
 
     /// <summary>all non-blank values of a field, or an empty list if the tag format does not support it</summary>
-    private static List<string> Values(AudioTags tag, AudioTags.Field key)
+    internal static List<string> Values(AudioTags tag, AudioTags.Field key)
     {
         List<string> result = new List<string>();
         try
@@ -137,7 +141,7 @@ public static class ArtistTags
     }
 
     /// <summary>removes every existing value of the field, then adds the given ones</summary>
-    private static void Replace(AudioTags tag, AudioTags.Field key, List<string> newValues)
+    internal static void Replace(AudioTags tag, AudioTags.Field key, List<string> newValues)
     {
         try
         {

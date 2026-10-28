@@ -91,7 +91,11 @@ public sealed partial class MusicManagerFrame : Window, ProcessFlow.IHost
         SetSizes();
 
         // Java: setDefaultCloseOperation(EXIT_ON_CLOSE), which also ends the threads that are still working
-        Closed += (_, _) => Environment.Exit(0);
+        Closed += (_, _) =>
+        {
+            DiscardUndecidedAdd(context);
+            Environment.Exit(0);
+        };
 
         Flow = new ProcessFlow(context, this, new ContentDialogPrompts(), NewReviewPage, Main.UiDispatcher);
 
@@ -385,13 +389,26 @@ public sealed partial class MusicManagerFrame : Window, ProcessFlow.IHost
         return PageFrame.CurrentSourcePageType == pageType;
     }
 
+    /// <summary>songs that were added but not confirmed are dropped when the window is closed: the library never had them</summary>
+    private static void DiscardUndecidedAdd(AppContext context)
+    {
+        try
+        {
+            context.AddSongsController?.Discard();
+        }
+        catch (Exception e)
+        {
+            System.Diagnostics.Debug.WriteLine("The songs waiting to be added could not be dropped: " + e);
+        }
+    }
+
     /// <summary>how ProcessFlow gets its review page: the WinUI one</summary>
     private ProcessFlow.IReviewPage NewReviewPage(ProcessFlow.IHost host, StandardizeController controller,
             StandardizeViewModel viewModel, string folder, ISet<string> scope, StandardizeOptions options,
-            IProcessPrompts prompts, Action onClosed)
+            IProcessPrompts prompts, Action onClosed, ProcessFlow.StagedSongs staged)
     {
         _onReviewClosed = onClosed;
-        return new ReviewPage(host, controller, viewModel, folder, scope, options, prompts, onClosed);
+        return new ReviewPage(host, controller, viewModel, folder, scope, options, prompts, onClosed, staged);
     }
 
     // ------------------------------------------------------------------ window geometry

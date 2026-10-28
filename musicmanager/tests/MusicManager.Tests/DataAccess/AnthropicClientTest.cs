@@ -338,6 +338,20 @@ public class AnthropicClientTest
     }
 
     [Fact]
+    public void WhenTheModelMaySearchTheWebTheApiIsNotToldToAllowOnlyOneToolCall()
+    {
+        FakeTransport transport = new FakeTransport().ReplyOk(Obj("{}"));
+
+        ClientFor(transport).CallTool(Key, Model, SystemPrompt, UserMessage, Tool, "d", Schema(), 4096,
+                new AnthropicClient.Options(null, 4));
+
+        JsonObject body = Obj(transport.Calls[0].Body);
+        Assert.Equal("auto", body.Child("tool_choice").Str("type"));
+        Assert.Null(body.Child("tool_choice")["disable_parallel_tool_use"]); // the API answers 400 to the flag next to the search tool
+        Assert.Equal(2, body.Arr("tools").Count);
+    }
+
+    [Fact]
     public void ItTellsWhetherTheAnswerCameAfterASearch()
     {
         JsonObject searched = Obj("{\"content\":[{\"type\":\"server_tool_use\",\"name\":\"web_search\"},"

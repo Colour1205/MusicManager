@@ -1,0 +1,54 @@
+<UserControl
+    x:Class="MusicManager.App.View.Library.AlbumGroupCard"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:MusicManager.App.View.Library"
+    HorizontalContentAlignment="Stretch">
+
+    <!--
+      One album of the review: the standardized name in a box that suggests names while it is typed (the album's own
+      spellings, then the other albums of the library, each with the folder it lives in; the name is also the name of the
+      album's folder, unless the album has a folder already), how many songs it covers (a link that opens the list of
+      them, with the album tag each has), a note when the songs go into a folder with another name, and a "please check"
+      line when Claude is not sure of the name. Nothing else: the user only has to put the songs in the right album.
+    -->
+    <Border Style="{StaticResource CardBorderStyle}" Padding="16,12">
+        <StackPanel Spacing="8">
+            <Grid ColumnSpacing="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <AutoSuggestBox x:Name="NameBox" HorizontalAlignment="Stretch" TextMemberPath="Name"
+                                AutomationProperties.Name="Standardized album name"
+                                ToolTipService.ToolTip="Type the album name. The first suggestion is what you typed (a folder with that name); the other suggestions are albums you have already, each with the folder the songs go into. Press Enter to apply it to every song."
+                                TextChanged="OnNameTextChanged" QuerySubmitted="OnNameQuerySubmitted"
+                                GotFocus="OnNameGotFocus" LostFocus="OnNameLostFocus">
+                    <AutoSuggestBox.ItemTemplate>
+                        <DataTemplate>
+                            <local:AlbumSuggestionRow />
+                        </DataTemplate>
+                    </AutoSuggestBox.ItemTemplate>
+                </AutoSuggestBox>
+                <!-- "N songs": a link that opens the list of those songs -->
+                <HyperlinkButton x:Name="SongCountButton" Grid.Column="1" Padding="6,2" FontSize="12"
+                                 VerticalAlignment="Center" Click="OnSongCountClick"
+                                 AutomationProperties.Name="Show the songs of this album" />
+            </Grid>
+            <!-- where the songs go when that is not the folder of the name: no surprise after the name is entered -->
+            <StackPanel x:Name="FolderRow" Orientation="Horizontal" Spacing="8" Visibility="Collapsed">
+                <FontIcon Glyph="&#xE8B7;" FontSize="14" VerticalAlignment="Center"
+                          Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                <TextBlock x:Name="FolderText" Style="{StaticResource CaptionTextBlockStyle}" TextWrapping="Wrap"
+                           VerticalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+            </StackPanel>
+            <StackPanel x:Name="WarningRow" Orientation="Horizontal" Spacing="8" Visibility="Collapsed">
+                <!-- the presenter's summary says "check the names marked in red" -->
+                <FontIcon Glyph="&#xE7BA;" FontSize="14" VerticalAlignment="Center"
+                          Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
+                <TextBlock x:Name="WarningText" Style="{StaticResource CaptionTextBlockStyle}" TextWrapping="Wrap"
+                           VerticalAlignment="Center" Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</UserControl>

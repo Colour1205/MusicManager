@@ -141,6 +141,9 @@ public sealed class SettingsStore
         json.Append("    \"recycleBin\": ").Append(Flag(options.IsRecycleBin)).Append(",\n");
         json.Append("    \"artists\": ").Append(Flag(options.IsArtists)).Append(",\n");
         json.Append("    \"useClaudeForArtists\": ").Append(Flag(options.IsUseClaudeForArtists)).Append(",\n");
+        json.Append("    \"albums\": ").Append(Flag(options.IsAlbums)).Append(",\n");
+        json.Append("    \"useClaudeForAlbums\": ").Append(Flag(options.IsUseClaudeForAlbums)).Append(",\n");
+        json.Append("    \"preferredFormat\": ").Append(Quote(options.PreferredFormat)).Append(",\n");
         json.Append("    \"separator\": ").Append(Quote(options.Separator)).Append(",\n");
         json.Append("    \"model\": ").Append(Quote(options.Model)).Append("\n");
         json.Append("  }");
@@ -182,6 +185,15 @@ public sealed class SettingsStore
                     break;
                 case "useClaudeForArtists":
                     read.IsUseClaudeForArtists = ReadFlag(value, read.IsUseClaudeForArtists);
+                    break;
+                case "albums":
+                    read.IsAlbums = ReadFlag(value, read.IsAlbums);
+                    break;
+                case "useClaudeForAlbums":
+                    read.IsUseClaudeForAlbums = ReadFlag(value, read.IsUseClaudeForAlbums);
+                    break;
+                case "preferredFormat":
+                    read.PreferredFormat = ReadText(value);
                     break;
                 case "separator":
                     read.Separator = ReadText(value);

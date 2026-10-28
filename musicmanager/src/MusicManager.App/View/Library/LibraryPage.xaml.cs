@@ -6,11 +6,14 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Navigation;
 using MusicManager.Common;
 using MusicManager.Entity;
+using MusicManager.InterfaceAdapter.AddSongs;
 using MusicManager.InterfaceAdapter.Library;
 using MusicManager.InterfaceAdapter.Standardize;
 using MusicManager.UseCase.StandardizeLyrics;
 using MusicManager.View.Library;
+using Windows.Storage.Pickers;
 using Windows.System;
+using WinRT.Interop;
 using AppContext = MusicManager.View.Library.AppContext; // System.AppContext would otherwise be ambiguous
 using Chip = MusicManager.View.Library.LibraryFilter.Chip;
 
@@ -50,6 +53,9 @@ public sealed partial class LibraryPage : Page
     private int _refreshing;
     private int _scanning;
     private bool _hostBusy;
+    private bool _adding; // songs are being staged for the library (copied to the folder they wait in)
+    private int _addDone;
+    private int _addTotal;
     private int _readDone;
     private int _readTotal;
     private int _scanDone;
@@ -226,6 +232,7 @@ public sealed partial class LibraryPage : Page
         _reading = false;
         _refreshing = 0;
         _scanning = 0;
+        _adding = false;
     }
 
     /// <summary>reads the folder again, as when it was opened, but keeps the filter and the search the user had</summary>
@@ -252,10 +259,11 @@ public sealed partial class LibraryPage : Page
         {
             return;
         }
-        if (paths.Any(path => !File.Exists(path)))
+        var known = new HashSet<string>(_songs.Select(song => song.Path), StringComparer.OrdinalIgnoreCase);
+        if (paths.Any(path => !File.Exists(path) || !known.Contains(path)))
         {
-            // a song's files were renamed (to "Artist - Title" after its tags): the list holds paths that are gone, and the
-            // new ones are in no list, so the folder is read again
+            // a song's files were renamed (to "Artist - Title" after its tags) or songs were added: the list holds paths that
+            // are gone, or lacks the new ones, so the folder is read again
             Reload();
             return;
         }
@@ -331,6 +339,49 @@ public sealed partial class LibraryPage : Page
             {
                 string message = state.ErrorMessage;
                 Post(() => OnReadError(message));
+            }
+        });
+
+        _context.AddSongsViewModel?.AddPropertyChangeListener(evt =>
+        {
+            if (!ReferenceEquals(s_current, this))
+            {
+                return;
+            }
+            AddSongsState state = _context.AddSongsViewModel.State;
+            string name = evt.PropertyName;
+            if (name == AddSongsViewModel.Added)
+            {
+                List<string> paths = state.LibraryPaths;
+                List<string> newPaths = state.NewPaths;
+                List<string> lyricsOnly = state.LyricsAddedTo;
+                string summary = state.Summary;
+                int problems = state.ProblemCount;
+                Post(() => OnAdded(paths, newPaths, lyricsOnly, summary, problems));
+            }
+            else if (name == AddSongsViewModel.Progress)
+            {
+                int done = state.ProgressDone;
+                int total = state.ProgressTotal;
+                Post(() =>
+                {
+                    if (_adding)
+                    {
+                        _addDone = done;
+                        _addTotal = total;
+                        RefreshStatusBar();
+                    }
+                });
+            }
+            else if (name == AddSongsViewModel.Error)
+            {
+                string message = state.ErrorMessage;
+                Post(() =>
+                {
+                    _adding = false;
+                    RefreshView();
+                    ShowError(message);
+                });
             }
         });
 
@@ -668,11 +719,19 @@ public sealed partial class LibraryPage : Page
         ProcessButton.IsEnabled = CanProcessSong() && (selected > 0 || Songs.VisibleCount() > 0);
         // a run elsewhere has a sentence of its own (the tool tip); the bar above the songs says that the page itself is busy
         ToolTipService.SetToolTip(ProcessButton, _hostBusy ? "A run is going" : null);
+        AddButton.IsEnabled = CanAddSongs();
     }
 
     private bool CanProcessSong()
     {
-        return !_reading && _refreshing == 0 && _scanning == 0 && !_hostBusy && _songs.Count > 0;
+        return !_reading && _refreshing == 0 && _scanning == 0 && !_hostBusy && !_adding && _songs.Count > 0;
+    }
+
+    /// <summary>songs can be added once the library has been read, and while nothing else changes it</summary>
+    private bool CanAddSongs()
+    {
+        return _context.AddSongsController != null && _folder.Length > 0 && !_reading && !_adding && !_hostBusy
+                && _refreshing == 0;
     }
 
     /// <summary>
@@ -689,6 +748,12 @@ public sealed partial class LibraryPage : Page
             name = "Reading songs";
             done = _readDone;
             total = _readTotal;
+        }
+        else if (_adding)
+        {
+            name = "Adding songs";
+            done = _addDone;
+            total = _addTotal;
         }
         else if (_scanning > 0)
         {
@@ -743,6 +808,126 @@ public sealed partial class LibraryPage : Page
         else
         {
             WorkProgress.IsIndeterminate = true;
+        }
+    }
+
+    // ------------------------------------------------------------------ adding songs
+
+    private async void AddSongsItem_Click(object sender, RoutedEventArgs e)
+    {
+        await PickAndAdd(false);
+    }
+
+    private async void AddFolderItem_Click(object sender, RoutedEventArgs e)
+    {
+        await PickAndAdd(true);
+    }
+
+    /// <summary>asks for the songs or the folder to add, stages them for the library and starts the run that standardizes them</summary>
+    private async Task PickAndAdd(bool folder)
+    {
+        if (!CanAddSongs())
+        {
+            return;
+        }
+        try
+        {
+            var sources = new List<string>();
+            if (folder)
+            {
+                var picker = new FolderPicker();
+                picker.SuggestedStartLocation = PickerLocationId.Downloads;
+                picker.CommitButtonText = "Add this folder";
+                picker.FileTypeFilter.Add("*");
+                InitializeWithWindow.Initialize(picker, MusicManagerFrame.Current.Handle);
+                Windows.Storage.StorageFolder chosen = await picker.PickSingleFolderAsync();
+                if (chosen != null)
+                {
+                    sources.Add(chosen.Path);
+                }
+            }
+            else
+            {
+                var picker = new FileOpenPicker();
+                picker.SuggestedStartLocation = PickerLocationId.Downloads;
+                picker.CommitButtonText = "Add songs";
+                foreach (string extension in MusicManager.DataAccess.DataAccess.AudioExtensions)
+                {
+                    picker.FileTypeFilter.Add(extension);
+                }
+                InitializeWithWindow.Initialize(picker, MusicManagerFrame.Current.Handle);
+                IReadOnlyList<Windows.Storage.StorageFile> chosen = await picker.PickMultipleFilesAsync();
+                if (chosen != null)
+                {
+                    sources.AddRange(chosen.Select(file => file.Path));
+                }
+            }
+            if (sources.Count != 0)
+            {
+                StartAdd(sources);
+            }
+        }
+        catch (Exception e)
+        {
+            ShowError("Could not add the songs: " + e.Message);
+        }
+    }
+
+    private void StartAdd(List<string> sources)
+    {
+        if (!CanAddSongs())
+        {
+            return;
+        }
+        _adding = true;
+        _addDone = 0;
+        _addTotal = 0;
+        _problemText = "";
+        RefreshView();
+        string library = _folder;
+        string preferred = _settings.StandardizeOptions.PreferredFormat;
+        Task.Run(() => _context.AddSongsController.Add(library, sources, preferred)).ContinueWith(task =>
+        {
+            if (task.IsFaulted)
+            {
+                Exception failure = task.Exception.InnerException ?? task.Exception;
+                Post(() =>
+                {
+                    _adding = false;
+                    RefreshView();
+                    ShowError("Could not add the songs: " + failure.Message);
+                });
+            }
+        }, TaskScheduler.Default);
+    }
+
+    /// <summary>
+    /// the songs are staged, not in the library: the run that standardizes them starts at once, with its review as for any
+    /// Process. The review shows the library as it will be with them, and they are copied in only when the user applies it;
+    /// when the user goes back they are dropped.
+    /// </summary>
+    private async void OnAdded(List<string> paths, List<string> newPaths, List<string> lyricsOnly, string summary, int problems)
+    {
+        _adding = false;
+        if (paths.Count == 0 || problems != 0)
+        {
+            // nothing could be added, or some songs could not: say so now, the review does not
+            await MusicManagerFrame.Current.ShowMessageAsync("Add songs", summary.Length == 0 ? "Nothing was added." : summary);
+        }
+        RefreshView();
+        if (paths.Count == 0)
+        {
+            return;
+        }
+        try
+        {
+            // the review works on the library folder as one path: the same spelling the songs were staged for
+            string library = Path.TrimEndingDirectorySeparator(Path.GetFullPath(_folder));
+            MusicManagerFrame.Current.Flow.StartAdded(library, paths, newPaths, lyricsOnly, _settings.Copy());
+        }
+        catch (Exception e)
+        {
+            ShowError("Could not start: " + e.Message);
         }
     }
 

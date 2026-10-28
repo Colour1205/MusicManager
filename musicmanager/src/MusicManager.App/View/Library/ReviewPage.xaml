@@ -34,6 +34,12 @@
         <DataTemplate x:Key="ArtistCardTemplate">
             <local:ArtistGroupCard />
         </DataTemplate>
+        <DataTemplate x:Key="AlbumCardTemplate">
+            <local:AlbumGroupCard />
+        </DataTemplate>
+        <DataTemplate x:Key="FolderRowTemplate">
+            <local:FolderTreeRow />
+        </DataTemplate>
     </Page.Resources>
 
     <Grid Padding="{StaticResource PagePadding}">
@@ -56,6 +62,8 @@
             <SelectorBar x:Name="SectionBar" Grid.Row="1" Visibility="Collapsed" SelectionChanged="OnSectionChanged">
                 <SelectorBarItem x:Name="LyricsItem" Text="Lyrics" />
                 <SelectorBarItem x:Name="ArtistsItem" Text="Artists" />
+                <SelectorBarItem x:Name="AlbumsItem" Text="Albums" />
+                <SelectorBarItem x:Name="FoldersItem" Text="Folder changes" />
                 <SelectorBarItem x:Name="ChangesItem" Text="Tag changes" />
             </SelectorBar>
 
@@ -95,6 +103,49 @@
                     </ListView.Header>
                 </ListView>
 
+                <ListView x:Name="AlbumList" SelectionMode="None" Visibility="Collapsed"
+                          ItemContainerStyle="{StaticResource CardListItemStyle}"
+                          ItemTemplate="{StaticResource AlbumCardTemplate}" Padding="0,0,12,0">
+                    <ListView.Header>
+                        <StackPanel Spacing="8" Margin="0,4,0,12">
+                            <TextBlock x:Name="AlbumsHeadline" Style="{StaticResource SummaryHeadlineStyle}" />
+                            <TextBlock x:Name="AlbumsDetail" Style="{StaticResource SummaryDetailStyle}" />
+                            <!-- finds the album to change: shows only the cards whose name or spelling matches -->
+                            <AutoSuggestBox x:Name="AlbumSearchBox" Visibility="Collapsed" MaxWidth="360"
+                                            HorizontalAlignment="Left" PlaceholderText="Search albums" QueryIcon="Find"
+                                            AutomationProperties.Name="Search albums"
+                                            TextChanged="OnAlbumSearchChanged" KeyDown="OnAlbumSearchKeyDown" />
+                            <TextBlock x:Name="AlbumSearchNote" Style="{StaticResource SummaryDetailStyle}"
+                                       Visibility="Collapsed" />
+                            <local:SkeletonLines x:Name="AlbumsSkeleton" Height="200" Visibility="Collapsed" />
+                        </StackPanel>
+                    </ListView.Header>
+                </ListView>
+
+                <!--
+                  The folders as they will be: a tree of the folders that change, with the songs that arrive in them. The
+                  headline and what it counts sit above the tree (the tree scrolls by itself); the code rebuilds the tree
+                  whenever an album or an artist is edited.
+                -->
+                <Grid x:Name="FolderPanel" Visibility="Collapsed" RowSpacing="8" Padding="0,0,12,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <StackPanel Spacing="8" Margin="0,4,0,4">
+                        <TextBlock x:Name="FoldersHeadline" Style="{StaticResource SummaryHeadlineStyle}" />
+                        <TextBlock x:Name="FoldersDetail" Style="{StaticResource SummaryDetailStyle}" />
+                        <local:SkeletonLines x:Name="FoldersSkeleton" Height="200" Visibility="Collapsed" />
+                    </StackPanel>
+                    <Border x:Name="FolderCard" Grid.Row="1" Style="{StaticResource CardBorderStyle}" Padding="8"
+                            Visibility="Collapsed">
+                        <!-- a preview only: the tree control drags and reorders its rows by default, which would look like a change -->
+                        <TreeView x:Name="FolderTree" SelectionMode="None" ItemTemplate="{StaticResource FolderRowTemplate}"
+                                  CanDragItems="False" CanReorderItems="False"
+                                  AutomationProperties.Name="Folder changes" />
+                    </Border>
+                </Grid>
+
                 <ListView x:Name="ChangesList" SelectionMode="None" Visibility="Collapsed"
                           ItemContainerStyle="{StaticResource CardListItemStyle}"
                           ItemTemplate="{StaticResource ResultCardTemplate}" Padding="0,0,12,0">
@@ -120,7 +171,7 @@
             <InfoBar x:Name="StatusBar" Grid.Row="3" IsOpen="True" IsClosable="False" Severity="Informational"
                      Visibility="Collapsed" />
 
-            <!-- Back (nothing written) and Apply (artists first and lyrics second) -->
+            <!-- Back (nothing written) and Apply (tags first, then the lyrics, then the folders and the file names) -->
             <Grid Grid.Row="4">
                 <Button x:Name="BackButton" HorizontalAlignment="Left" AutomationProperties.Name="Back" Click="OnBackClick">
                     <StackPanel Orientation="Horizontal" Spacing="8">

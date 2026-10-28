@@ -1,3 +1,4 @@
+using MusicManager.InterfaceAdapter.AddSongs;
 using MusicManager.InterfaceAdapter.ConvertLRC;
 using MusicManager.InterfaceAdapter.Library;
 using MusicManager.InterfaceAdapter.Standardize;
@@ -34,6 +35,10 @@ public sealed class AppContext
     /// <summary>Makes a new, unshared pipeline for one preview job of the song window; null = there is no preview.</summary>
     public Func<StandardizePipeline> PreviewPipelines { get; }
 
+    /// <summary>Stages picked songs for the library and puts them in or drops them (the Add button); null = the app cannot add songs.</summary>
+    public AddSongsController AddSongsController { get; }
+    public AddSongsViewModel AddSongsViewModel { get; }
+
     public AppContext(IAppSettingsDataAccess settings, LibraryController libraryController,
             LibraryViewModel libraryViewModel, StandardizeController scanController, StandardizeViewModel scanViewModel,
             StandardizeController processController, StandardizeViewModel processViewModel,
@@ -48,7 +53,20 @@ public sealed class AppContext
             StandardizeController processController, StandardizeViewModel processViewModel,
             ConvertLRCController convertController, ConvertLRCViewModal convertViewModal,
             Func<StandardizePipeline> previewPipelines)
+        : this(settings, libraryController, libraryViewModel, scanController, scanViewModel, processController,
+                processViewModel, convertController, convertViewModal, previewPipelines, null, null)
     {
+    }
+
+    public AppContext(IAppSettingsDataAccess settings, LibraryController libraryController,
+            LibraryViewModel libraryViewModel, StandardizeController scanController, StandardizeViewModel scanViewModel,
+            StandardizeController processController, StandardizeViewModel processViewModel,
+            ConvertLRCController convertController, ConvertLRCViewModal convertViewModal,
+            Func<StandardizePipeline> previewPipelines, AddSongsController addSongsController,
+            AddSongsViewModel addSongsViewModel)
+    {
+        AddSongsController = addSongsController;
+        AddSongsViewModel = addSongsViewModel;
         Settings = settings;
         LibraryController = libraryController;
         LibraryViewModel = libraryViewModel;

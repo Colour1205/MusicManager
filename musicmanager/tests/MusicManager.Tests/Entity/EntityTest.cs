@@ -97,6 +97,7 @@ public class EntityTest
         StandardizeOptions options = new StandardizeOptions();
         Assert.True(options.UsesClaude());
 
+        options.IsUseClaudeForAlbums = false;
         options.IsUseClaudeForArtists = false; // romaji alone is enough
         Assert.True(options.UsesClaude());
 
@@ -115,6 +116,13 @@ public class EntityTest
 
         options.IsLyrics = true;
         Assert.True(options.UsesClaude());
+
+        options.IsRomaji = false; // albums with the Claude option need it as well
+        Assert.False(options.UsesClaude());
+        options.IsUseClaudeForAlbums = true;
+        Assert.True(options.UsesClaude());
+        options.IsAlbums = false;
+        Assert.False(options.UsesClaude());
     }
 
     [Fact]
@@ -414,5 +422,51 @@ public class EntityTest
         Assert.Equal(new List<string> { "A" }, tags.Artist);
         Assert.Empty(tags.AlbumArtist);
         Assert.Equal(new List<string> { "A", "B" }, tags.Artists);
+    }
+
+    [Fact]
+    public void TheAlbumOptionsAreOnAndTheCopyKeepsThem()
+    {
+        StandardizeOptions options = new StandardizeOptions();
+        Assert.True(options.IsAlbums);
+        Assert.True(options.IsUseClaudeForAlbums);
+
+        options.IsAlbums = false;
+        options.IsUseClaudeForAlbums = false;
+        StandardizeOptions copy = options.Copy();
+
+        Assert.False(copy.IsAlbums);
+        Assert.False(copy.IsUseClaudeForAlbums);
+    }
+
+    [Fact]
+    public void TheFormatAddPrefersIsFlacUntilChosenAndIsKeptAsAnExtension()
+    {
+        StandardizeOptions options = new StandardizeOptions();
+        Assert.Equal("flac", options.PreferredFormat);
+
+        options.PreferredFormat = " .WAV ";
+        Assert.Equal("wav", options.PreferredFormat);
+        Assert.Equal("wav", options.Copy().PreferredFormat);
+
+        options.PreferredFormat = "  ";
+        Assert.Equal("flac", options.PreferredFormat);
+        options.PreferredFormat = null;
+        Assert.Equal("flac", options.PreferredFormat);
+    }
+
+    [Fact]
+    public void ASongAlbumTagsKeepsItsValuesAndCopiesTheLists()
+    {
+        List<string> artist = new List<string> { "A" };
+        SongAlbumTags tags = new SongAlbumTags("C:\\a.flac", "Palette", artist, null, "Black Out");
+        artist.Add("changed later");
+
+        Assert.Equal("C:\\a.flac", tags.Path);
+        Assert.Equal("Palette", tags.Album);
+        Assert.Equal("Black Out", tags.Title);
+        Assert.Equal(new List<string> { "A" }, tags.Artist);
+        Assert.Empty(tags.AlbumArtist);
+        Assert.Null(new SongAlbumTags("x", null, null, null, null).Album);
     }
 }

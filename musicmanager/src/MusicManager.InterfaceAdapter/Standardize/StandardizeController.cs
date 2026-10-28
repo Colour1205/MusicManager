@@ -1,3 +1,4 @@
+using MusicManager.UseCase.StandardizeAlbums;
 using MusicManager.UseCase.StandardizeArtists;
 using MusicManager.UseCase.StandardizeLyrics;
 
@@ -7,12 +8,20 @@ public class StandardizeController
 {
     private readonly IStandardizeLyricsInputBoundary _lyricsInteractor;
     private readonly IStandardizeArtistsInputBoundary _artistsInteractor;
+    private readonly IStandardizeAlbumsInputBoundary _albumsInteractor;
 
     public StandardizeController(IStandardizeLyricsInputBoundary lyricsInteractor,
         IStandardizeArtistsInputBoundary artistsInteractor)
+        : this(lyricsInteractor, artistsInteractor, null)
+    {
+    }
+
+    public StandardizeController(IStandardizeLyricsInputBoundary lyricsInteractor,
+        IStandardizeArtistsInputBoundary artistsInteractor, IStandardizeAlbumsInputBoundary albumsInteractor)
     {
         _lyricsInteractor = lyricsInteractor;
         _artistsInteractor = artistsInteractor;
+        _albumsInteractor = albumsInteractor;
     }
 
     /// <summary>
@@ -78,7 +87,47 @@ public class StandardizeController
     /// </summary>
     public void RenameFiles(ArtistPlan plan)
     {
-        _artistsInteractor.RenameFiles(new StandardizeArtistsApplyInputData(plan));
+        RenameFiles(plan, null);
+    }
+
+    /// <summary>
+    /// the same for songs that were moved to album folders since the plan was made: movedPaths (audio path before ->
+    /// after, from the albums' MovedPaths) says where their files are now
+    /// </summary>
+    public void RenameFiles(ArtistPlan plan, IReadOnlyDictionary<string, string> movedPaths)
+    {
+        _artistsInteractor.RenameFiles(new StandardizeArtistsApplyInputData(plan, movedPaths));
+    }
+
+    // ---- albums ----
+
+    /// <summary>
+    /// Works out which album each song belongs to, from the whole folder; only the given songs (audio file paths) get their
+    /// tags and folders changed, null = every song.
+    /// </summary>
+    public void AnalyzeAlbums(string path, bool useAi, string apiKey, string model, IEnumerable<string> audioPaths)
+    {
+        _albumsInteractor.Analyze(new StandardizeAlbumsAnalyzeInputData(path, useAi, apiKey, model, audioPaths));
+    }
+
+    /// <summary>call after editing an album's name so the "what changes" preview is recomputed</summary>
+    public void ReviewAlbums(AlbumPlan plan)
+    {
+        _albumsInteractor.Review(new StandardizeAlbumsApplyInputData(plan));
+    }
+
+    public void ApplyAlbums(AlbumPlan plan)
+    {
+        _albumsInteractor.Apply(new StandardizeAlbumsApplyInputData(plan));
+    }
+
+    /// <summary>
+    /// puts the plan's songs in folders named after their albums; call it after ApplyAlbums and the lyrics (the lyrics are
+    /// found by the old paths) and before RenameFiles, which needs to be told where the files went
+    /// </summary>
+    public void MoveAlbumFolders(AlbumPlan plan)
+    {
+        _albumsInteractor.MoveFolders(new StandardizeAlbumsApplyInputData(plan));
     }
 
     public bool IsApiKeyAvailable => _artistsInteractor.IsApiKeyAvailable;

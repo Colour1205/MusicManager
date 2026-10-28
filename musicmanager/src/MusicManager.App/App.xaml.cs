@@ -29,7 +29,9 @@ public partial class App : Application
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
         Main.InitializeDispatcher(DispatcherQueue.GetForCurrentThread());
-        _window = new MusicManagerFrame(Main.BuildContext(new DataAccess.DataAccess()));
+        var dataAccess = new DataAccess.DataAccess();
+        dataAccess.DiscardUndecidedAdds(); // songs added in an earlier run that were never confirmed: the library does not have them
+        _window = new MusicManagerFrame(Main.BuildContext(dataAccess));
         _window.Activate();
 
         string[] commandLine = Environment.GetCommandLineArgs();

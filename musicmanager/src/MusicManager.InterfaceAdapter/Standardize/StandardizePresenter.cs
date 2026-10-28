@@ -1,15 +1,18 @@
 using System.Text;
+using MusicManager.Entity;
+using MusicManager.UseCase.StandardizeAlbums;
 using MusicManager.UseCase.StandardizeArtists;
 using MusicManager.UseCase.StandardizeLyrics;
 
 namespace MusicManager.InterfaceAdapter.Standardize;
 
 /// <summary>
-/// Turns both standardize use cases' results into the display-ready StandardizeState and
+/// Turns the standardize use cases' results into the display-ready StandardizeState and
 /// fires a property change per kind of event (see StandardizeViewModel's constants).
 /// Interactors run on background threads, so every list is built fresh and then swapped in.
 /// </summary>
-public class StandardizePresenter : IStandardizeLyricsOutputBoundary, IStandardizeArtistsOutputBoundary
+public class StandardizePresenter : IStandardizeLyricsOutputBoundary, IStandardizeArtistsOutputBoundary,
+        IStandardizeAlbumsOutputBoundary
 {
     private readonly StandardizeViewModel _viewModel;
 
@@ -193,6 +196,7 @@ public class StandardizePresenter : IStandardizeLyricsOutputBoundary, IStandardi
         state.ArtistPlan = plan;
         state.ArtistUpdates = outputData.Updates;
         state.ArtistRenameCount = outputData.Renames.Count;
+        state.ArtistRenames = outputData.Renames;
         state.ArtistsSummary = AnalysisSummary(plan, outputData.Updates.Count);
         _viewModel.FirePropertyChange(StandardizeViewModel.ArtistsAnalysis);
     }
@@ -273,6 +277,100 @@ public class StandardizePresenter : IStandardizeLyricsOutputBoundary, IStandardi
         StandardizeState state = _viewModel.State;
         state.ErrorMessage = message;
         _viewModel.FirePropertyChange(StandardizeViewModel.Error);
+    }
+
+    // ---- albums ----
+
+    public void PresentAlbumsAnalysis(StandardizeAlbumsAnalysisOutputData outputData)
+    {
+        AlbumPlan plan = outputData.Plan;
+
+        StandardizeState state = _viewModel.State;
+        state.AlbumPlan = plan;
+        state.AlbumUpdates = outputData.Updates;
+        state.AlbumFolderMoves = outputData.Moves;
+        state.AlbumsSummary = AlbumsSummary(plan, outputData.Updates, outputData.Moves);
+        _viewModel.FirePropertyChange(StandardizeViewModel.AlbumsAnalysis);
+    }
+
+    /// <summary>
+    /// two lines: what changes, then how the names were grouped and what happens to the folders. With a scope (some songs
+    /// were chosen) the sentence is about those songs only, while the albums are still those of the whole folder.
+    /// </summary>
+    private static string AlbumsSummary(AlbumPlan plan, List<SongAlbumUpdate> updates, List<AlbumFolderMove> moves)
+    {
+        int albums = plan.Groups.Count;
+        string found = albums + (albums == 1 ? " album" : " albums") + " found";
+        var changed = new HashSet<string>(updates.Select(update => update.AudioPath));
+        foreach (AlbumFolderMove move in moves)
+        {
+            changed.UnionWith(move.AudioPaths);
+        }
+        string headline;
+        if (plan.Scope == null)
+        {
+            int songs = plan.Songs.Count;
+            headline = found + ", " + changed.Count + " of " + songs + (songs == 1 ? " song" : " songs") + " will change";
+        }
+        else
+        {
+            int selected = plan.ScopedSongCount;
+            headline = found + " in the folder, " + changed.Count + " of " + selected + " selected "
+                + (selected == 1 ? "song" : "songs") + " will change";
+        }
+
+        string how = plan.IsUsedAi ? "Grouped by AI. Check the albums marked in red."
+            : "Grouped without AI, so review every name carefully.";
+        int moving = moves.Sum(move => move.AudioPaths.Count);
+        if (moving != 0)
+        {
+            how += "\n" + moving + (moving == 1 ? " song moves" : " songs move") + " to the folder named after "
+                + (moving == 1 ? "its album" : "their albums");
+        }
+        if (plan.Warnings.Count != 0)
+        {
+            how += "  ·  " + plan.Warnings.Count + " warning(s)";
+        }
+        return headline + "\n" + how;
+    }
+
+    public void PresentAlbumsApplied(StandardizeAlbumsApplyOutputData outputData)
+    {
+        string text = "Updated " + outputData.UpdatedCount + " album " + (outputData.UpdatedCount == 1 ? "tag" : "tags") + ", "
+            + outputData.UnchangedCount + " were already right";
+        if (outputData.FailedPaths.Count != 0)
+        {
+            text += ", " + outputData.FailedPaths.Count + " could not be written";
+        }
+
+        StandardizeState state = _viewModel.State;
+        state.AlbumsAppliedSummary = text;
+        _viewModel.FirePropertyChange(StandardizeViewModel.AlbumsApplied);
+    }
+
+    public void PresentAlbumsMoved(StandardizeAlbumsMoveOutputData outputData)
+    {
+        var parts = new List<string>();
+        if (outputData.SongsMoved > 0)
+        {
+            string renamed = outputData.FoldersRenamed == 0 ? ""
+                : " (" + outputData.FoldersRenamed + (outputData.FoldersRenamed == 1 ? " folder was" : " folders were") + " renamed)";
+            parts.Add("Moved " + outputData.SongsMoved + (outputData.SongsMoved == 1 ? " song" : " songs")
+                + " into the folders named after their albums" + renamed);
+        }
+        if (outputData.Skipped.Count != 0)
+        {
+            List<string> why = outputData.Skipped.Take(5)
+                .Select(skipped => Path.GetFileName(skipped.AudioPath) + ": " + skipped.Detail).ToList();
+            string more = outputData.Skipped.Count > 5 ? "\n... and " + (outputData.Skipped.Count - 5) + " more" : "";
+            parts.Add(outputData.Skipped.Count + (outputData.Skipped.Count == 1 ? " song was" : " songs were")
+                + " left in their folders:\n" + string.Join("\n", why) + more);
+        }
+
+        StandardizeState state = _viewModel.State;
+        state.AlbumMovedPaths = outputData.MovedPaths;
+        state.AlbumsMovedSummary = string.Join(", ", parts);
+        _viewModel.FirePropertyChange(StandardizeViewModel.AlbumsMoved);
     }
 
     // ---- shared ----

@@ -11,6 +11,9 @@ public class StandardizeViewModel : ViewModel<StandardizeState>
     public const string ArtistsAnalysis = "artistsAnalysis";
     public const string ArtistsApplied = "artistsApplied";
     public const string ArtistsRenamed = "artistsRenamed";
+    public const string AlbumsAnalysis = "albumsAnalysis";
+    public const string AlbumsApplied = "albumsApplied";
+    public const string AlbumsMoved = "albumsMoved";
     public const string Progress = "progress";
     public const string Error = "error";
 

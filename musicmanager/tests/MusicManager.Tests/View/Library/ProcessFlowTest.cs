@@ -1,7 +1,9 @@
 using System.Collections.Concurrent;
 using MusicManager.Entity;
+using MusicManager.InterfaceAdapter.AddSongs;
 using MusicManager.InterfaceAdapter.ConvertLRC;
 using MusicManager.InterfaceAdapter.Standardize;
+using MusicManager.UseCase.AddSongs;
 using MusicManager.UseCase.ConvertLRC;
 using MusicManager.UseCase.StandardizeArtists;
 using MusicManager.UseCase.StandardizeLyrics;
@@ -127,6 +129,7 @@ public class ProcessFlowTest
         public ISet<string> Scope;
         public StandardizeOptions Options;
         public Action OnClosed;
+        public ProcessFlow.StagedSongs Staged;
         public bool Closed;
         public bool PreviewStarted;
         public readonly List<string> Events = new();
@@ -197,6 +200,37 @@ public class ProcessFlowTest
         }
     }
 
+    /// <summary>the add-songs use case, as far as the flow reaches it: confirming and dropping the staged songs</summary>
+    private sealed class FakeAddSongs : IAddSongsInputBoundary
+    {
+        private readonly AddSongsViewModel _viewModel;
+        public int Commits;
+        public int Discards;
+        public string Problem; // what a commit answers
+        public int Songs = 3;
+
+        public FakeAddSongs(AddSongsViewModel viewModel)
+        {
+            _viewModel = viewModel;
+        }
+
+        public void Add(AddSongsInputData inputData)
+        {
+        }
+
+        public void Commit()
+        {
+            Commits++;
+            _viewModel.State.CommitProblem = Problem; // the presenter's job: the state is set when the call returns
+            _viewModel.State.CommittedSongs = Problem == null ? Songs : 0;
+        }
+
+        public void Discard()
+        {
+            Discards++;
+        }
+    }
+
     private const string FOLDER = "C:\\music";
 
     private readonly FakeHost host = new();
@@ -205,14 +239,18 @@ public class ProcessFlowTest
     private readonly FakeConvert convert = new();
     private readonly StandardizeViewModel processViewModel = new();
     private readonly ConvertLRCViewModal convertViewModal = new();
+    private readonly AddSongsViewModel addSongsViewModel = new();
+    private readonly FakeAddSongs addSongs;
     private readonly List<FakePage> pages = new();
     private readonly AppContext context;
     private readonly AppSettings settings = new AppSettings(FOLDER, null);
 
     public ProcessFlowTest()
     {
+        addSongs = new FakeAddSongs(addSongsViewModel);
         context = new AppContext(null, null, null, null, null, new StandardizeController(useCases, useCases),
-                processViewModel, new ConvertLRCController(convert), convertViewModal);
+                processViewModel, new ConvertLRCController(convert), convertViewModal, null,
+                new AddSongsController(addSongs), addSongsViewModel);
         settings.StandardizeOptions.ApiKey = "typed-key"; // so that no lookup in the environment is needed
     }
 
@@ -223,12 +261,12 @@ public class ProcessFlowTest
 
     private ProcessFlow.IReviewPage NewPage(ProcessFlow.IHost h, StandardizeController controller,
             StandardizeViewModel viewModel, string folder, ISet<string> scope, StandardizeOptions options,
-            IProcessPrompts p, Action onClosed)
+            IProcessPrompts p, Action onClosed, ProcessFlow.StagedSongs staged)
     {
         var page = new FakePage
         {
             Host = h, Controller = controller, ViewModel = viewModel, Folder = folder, Scope = scope, Options = options,
-            OnClosed = onClosed
+            OnClosed = onClosed, Staged = staged
         };
         lock (pages)
         {
@@ -271,14 +309,15 @@ public class ProcessFlowTest
     }
 
     [Fact]
-    public void NothingToDoWhenLyricsAndArtistsAreOff()
+    public void NothingToDoWhenLyricsArtistsAndAlbumsAreOff()
     {
         settings.StandardizeOptions.IsLyrics = false;
         settings.StandardizeOptions.IsArtists = false;
+        settings.StandardizeOptions.IsAlbums = false;
 
         Flow(false).Start(FOLDER, Songs("C:\\music\\a.flac"), settings);
 
-        Assert.Equal(new List<string> { "info|Nothing to do|Nothing to do: turn on lyrics or artists in Options." },
+        Assert.Equal(new List<string> { "info|Nothing to do|Nothing to do: turn on lyrics, artists or albums in Options." },
                 prompts.Snapshot());
         Assert.Empty(pages);
     }
@@ -345,6 +384,7 @@ public class ProcessFlowTest
     public void WithoutAnyKeyTheRunDoesNotStart()
     {
         settings.StandardizeOptions.ApiKey = ""; // Claude is needed and no key was typed
+        settings.StandardizeOptions.IsAlbums = false;
         useCases.ApiKeyAvailable = false;
         ProcessFlow flow = Flow(false);
 
@@ -408,6 +448,168 @@ public class ProcessFlowTest
 
         Assert.Single(pages);
         Assert.Empty(convert.Calls);
+    }
+
+    // ---- songs that were just added (staged: not in the library until the review is applied) ----
+
+    private static readonly string[] AddedPaths = { "C:\\music\\New songs\\a.flac", "C:\\music\\Old\\b.flac" };
+    private static readonly string[] NewPaths = { "C:\\music\\New songs\\a.flac" };
+
+    [Fact]
+    public void ARunForAddedSongsOpensAReviewThatKnowsWhichSongsAreNew()
+    {
+        Flow(false).StartAdded(FOLDER, AddedPaths, NewPaths, settings);
+
+        FakePage page = Assert.Single(pages);
+        Assert.True(page.PreviewStarted);
+        Assert.Equal(AddedPaths, page.Scope.ToArray());
+        Assert.NotNull(page.Staged);
+        Assert.Equal(NewPaths, page.Staged.NewPaths.ToArray());
+        Assert.Equal(0, addSongs.Discards); // the review decides: nothing is dropped, nothing is added yet
+        Assert.Equal(0, addSongs.Commits);
+    }
+
+    [Fact]
+    public void TheReviewConfirmsAnAddThroughTheUseCaseAndLearnsHowManySongsWentIn()
+    {
+        Flow(false).StartAdded(FOLDER, AddedPaths, NewPaths, settings);
+        ProcessFlow.StagedSongs staged = pages[0].Staged;
+        addSongs.Songs = 4;
+
+        string problem = staged.Commit();
+
+        Assert.Null(problem);
+        Assert.Equal(1, addSongs.Commits);
+        Assert.Equal(4, staged.CommittedSongs);
+    }
+
+    [Fact]
+    public void AConfirmationThatFailedReturnsWhyAndCountsNoSongs()
+    {
+        Flow(false).StartAdded(FOLDER, AddedPaths, NewPaths, settings);
+        addSongs.Problem = "a file is in the way";
+
+        string problem = pages[0].Staged.Commit();
+
+        Assert.Equal("a file is in the way", problem);
+        Assert.Equal(0, pages[0].Staged.CommittedSongs);
+    }
+
+    [Fact]
+    public void TheReviewDropsTheStagedSongsThroughTheUseCase()
+    {
+        Flow(false).StartAdded(FOLDER, AddedPaths, NewPaths, settings);
+
+        pages[0].Staged.Discard();
+
+        Assert.Equal(1, addSongs.Discards);
+        Assert.Equal(0, addSongs.Commits);
+    }
+
+    [Fact]
+    public void LibrarySongsThatOnlyGetLyricsAreToldApartFromTheNewSongs()
+    {
+        string[] lyricsOnly = { "C:\\music\\Old\\b.flac" };
+
+        Flow(false).StartAdded(FOLDER, AddedPaths, NewPaths, lyricsOnly, settings);
+
+        ProcessFlow.StagedSongs staged = Assert.Single(pages).Staged;
+        Assert.Equal(NewPaths, staged.NewPaths.ToArray());
+        Assert.Equal(lyricsOnly, staged.LyricsOnlyPaths.ToArray());
+        Assert.Equal(AddedPaths, pages[0].Scope.ToArray()); // all of them are in the run: the lyrics of the second one are standardized too
+    }
+
+    [Fact]
+    public void LyricsAloneAreEnoughToHaveSomethingToConfirm()
+    {
+        Flow(false).StartAdded(FOLDER, new[] { "C:\\music\\Old\\b.flac" }, new string[0], new[] { "C:\\music\\Old\\b.flac" }, settings);
+
+        ProcessFlow.StagedSongs staged = Assert.Single(pages).Staged;
+        Assert.NotNull(staged);
+        Assert.Empty(staged.NewPaths);
+        Assert.Single(staged.LyricsOnlyPaths);
+    }
+
+    [Fact]
+    public void AddedSongsThatNeedNoStagingGetAnOrdinaryReview()
+    {
+        // songs picked from inside the library, or that it has already: nothing is staged, so there is nothing to confirm
+        Flow(false).StartAdded(FOLDER, AddedPaths, new string[0], settings);
+
+        Assert.Null(Assert.Single(pages).Staged);
+    }
+
+    [Fact]
+    public void WhenNothingIsToBeDoneTheStagedSongsAreDroppedAndTheUserToldNothingWasAdded()
+    {
+        settings.StandardizeOptions.IsLyrics = false;
+        settings.StandardizeOptions.IsArtists = false;
+        settings.StandardizeOptions.IsAlbums = false;
+
+        Flow(false).StartAdded(FOLDER, AddedPaths, NewPaths, settings);
+
+        Assert.Empty(pages);
+        Assert.Equal(1, addSongs.Discards);
+        string logged = Assert.Single(prompts.Snapshot());
+        Assert.StartsWith("info|Nothing to do|Nothing was added to the library.", logged, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WithoutAnyKeyTheStagedSongsAreDroppedToo()
+    {
+        settings.StandardizeOptions.ApiKey = "";
+        settings.StandardizeOptions.IsAlbums = false;
+        useCases.ApiKeyAvailable = false;
+
+        Flow(false).StartAdded(FOLDER, AddedPaths, NewPaths, settings);
+        WaitFor(() => prompts.Snapshot().Count == 1);
+
+        Assert.Empty(pages);
+        Assert.Equal(1, addSongs.Discards);
+        Assert.Contains("Nothing was added to the library", prompts.Snapshot()[0]);
+    }
+
+    [Fact]
+    public void ARunThatCannotStartBecauseAReviewIsOpenDropsTheStagedSongs()
+    {
+        ProcessFlow flow = Flow(false);
+        flow.Start(FOLDER, Songs("C:\\music\\a.flac"), settings);
+
+        flow.StartAdded(FOLDER, AddedPaths, NewPaths, settings);
+
+        Assert.Single(pages);
+        Assert.Equal(1, addSongs.Discards);
+    }
+
+    [Fact]
+    public void ARunWithNoSongsDropsTheStagedSongsToo()
+    {
+        Flow(false).StartAdded(FOLDER, new string[0], NewPaths, settings);
+
+        Assert.Empty(pages);
+        Assert.Equal(1, addSongs.Discards);
+        Assert.Equal("info|Process|There are no songs to process.", Assert.Single(prompts.Snapshot()));
+    }
+
+    [Fact]
+    public void AReviewThatCannotBeMadeDropsTheStagedSongs()
+    {
+        var flow = new ProcessFlow(context, host, false, prompts,
+                (h, controller, viewModel, folder, scope, options, p, onClosed, staged) => throw new InvalidOperationException("no page"),
+                action => action());
+
+        Assert.Throws<InvalidOperationException>(() => flow.StartAdded(FOLDER, AddedPaths, NewPaths, settings));
+
+        Assert.Equal(1, addSongs.Discards);
+    }
+
+    [Fact]
+    public void AnOrdinaryProcessHasNothingStaged()
+    {
+        Flow(false).Start(FOLDER, Songs("C:\\music\\a.flac"), settings);
+
+        Assert.Null(Assert.Single(pages).Staged);
+        Assert.Equal(0, addSongs.Discards);
     }
 
     // ---- Convert (deprecated) ----

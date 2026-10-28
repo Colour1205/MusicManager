@@ -1,0 +1,16 @@
+<UserControl
+    x:Class="MusicManager.App.View.Library.AlbumSuggestionRow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    HorizontalContentAlignment="Stretch">
+
+    <!--
+      One suggestion of the album name box: the name, and under it what the user has to know before taking it (how many
+      songs have the name, and the folder they are in).
+    -->
+    <StackPanel Spacing="2" Padding="0,4">
+        <TextBlock x:Name="NameText" Style="{StaticResource BodyTextBlockStyle}" TextTrimming="CharacterEllipsis" />
+        <TextBlock x:Name="DetailText" Style="{StaticResource CaptionTextBlockStyle}" TextTrimming="CharacterEllipsis"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+    </StackPanel>
+</UserControl>
